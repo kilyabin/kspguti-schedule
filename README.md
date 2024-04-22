@@ -21,7 +21,3 @@ Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support and is generally
 - Dark theme with automatic switching based on system settings
 
 Built under 1 day. Tools used: pnpm, eslint, react-icons. Deployed with Netlify and supported by Cloudflare.
-
-## Hire me!
-
-I'm available for hire if you can provide me with a work visa in Canada. Check out my resume: [cv.hloth.dev](https://cv.hloth.dev).
