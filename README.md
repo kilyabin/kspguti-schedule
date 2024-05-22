@@ -1,6 +1,6 @@
 # Schedule for колледж связи пгути 
 
-Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support and is generally ugly.
+Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support.
 
 [![Screenshot](https://github.com/VityaSchel/kspguti-schedule/assets/59040542/07cc1f67-ccb0-4522-a59d-16387fa11987#gh-dark-mode-only)](https://kspsuti.ru#gh-dark-mode-only)
 
@@ -11,7 +11,7 @@ Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support and is generally
 ## Tech stack & features
 
 - React with Next.js v13.5 (pages router)
-- Tailwind CSS. This is my first project using it, after using SCSS Modules for many years
+- Tailwind CSS.
 - @shadcn/ui components (built with Radix UI)
 - JSDOM for parsing scraped pages, rehydration strategy for cache
 - TypeScript with types for each package
@@ -20,4 +20,4 @@ Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support and is generally
 - Accessability & tab navigation support
 - Dark theme with automatic switching based on system settings
 
-Built under 1 day. Tools used: pnpm, eslint, react-icons. Deployed with Netlify and supported by Cloudflare.
+Tools used: pnpm, eslint, react-icons. Deployed with Netlify and supported by Cloudflare.
