@@ -14,7 +14,7 @@ export function Day({ day }: {
     'Пятница',
     'Суббота',
     'Воскресенье'
-  ][day.date.getDay()-1]
+  ][(day.date.getDay() + 6) % 7]
 
   const longNames = day.lessons
     .some(lesson => 'subject' in lesson && lesson.subject.length > 20)

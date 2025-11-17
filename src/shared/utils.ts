@@ -15,5 +15,7 @@ export function getDayOfWeek(date: Date): 'monday' | 'tuesday' | 'wednesday' | '
     'saturday',
     'sunday'
   ] as const
-  return weekDays[date.getDay()] 
+  // getDay() returns 0-6 (0=Sunday, 1=Monday, ...), but array starts with Monday
+  // Convert: Sunday (0) -> 6, Monday (1) -> 0, Tuesday (2) -> 1, etc.
+  return weekDays[(date.getDay() + 6) % 7]
 }

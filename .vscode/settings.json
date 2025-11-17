@@ -5,7 +5,7 @@
     "@": "${workspaceRoot}/src"
   },
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": "explicit"
   },
   "editor.quickSuggestions": {
     "strings": "on"

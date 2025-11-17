@@ -86,6 +86,11 @@ export function Lesson({ lesson, width = 350 }: {
               {lesson.time.start} - {lesson.time.end}{
               }{lesson.time.hint && <span className='font-bold'>&nbsp;({lesson.time.hint})</span>}
             </CardDescription>
+            {hasTeacher && lesson.teacher && (
+              <CardDescription className='text-sm font-medium'>
+                {lesson.teacher}
+              </CardDescription>
+            )}
           </div>
         </div>
       </CardHeader>
