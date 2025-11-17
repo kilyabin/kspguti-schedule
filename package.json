@@ -2,6 +2,10 @@
   "name": "kspguti-schedule",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -22,14 +26,14 @@
     "content-type": "^1.0.5",
     "date-fns": "^2.30.0",
     "jsdom": "^22.1.0",
-    "lucide-react": "^0.279.0",
-    "next": "latest",
+    "lucide-react": "^0.554.0",
+    "next": "16.0.3",
     "next-sitemap": "^4.2.3",
     "next-themes": "^0.2.1",
     "node-html-parser": "^6.1.10",
     "node-telegram-bot-api": "^0.63.0",
-    "react": "latest",
-    "react-dom": "latest",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "react-icons": "^4.11.0",
     "sass": "^1.69.3",
     "sharp": "^0.32.6",
@@ -39,16 +43,16 @@
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.3",
-    "@types/node": "latest",
+    "@types/node": "22.0.0",
     "@types/node-telegram-bot-api": "^0.61.8",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
     "@typescript-eslint/eslint-plugin": "^6.7.3",
-    "autoprefixer": "latest",
-    "eslint": "latest",
-    "eslint-config-next": "latest",
-    "postcss": "latest",
+    "autoprefixer": "10.4.20",
+    "eslint": "9.0.0",
+    "eslint-config-next": "16.0.3",
+    "postcss": "8.4.47",
     "tailwindcss": "^3.4.18",
-    "typescript": "latest"
+    "typescript": "5.6.0"
   }
 }

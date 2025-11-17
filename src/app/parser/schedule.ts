@@ -16,21 +16,31 @@ const parseLesson = (row: Element): Lesson | null => {
 
   try {
     const cells = Array.from(row.querySelectorAll(':scope > td'))
-    if (cells[3].textContent!.trim() === 'Свободное время') return null
+    if (!cells[3] || cells[3].textContent?.trim() === 'Свободное время') return null
 
     lesson.isChange = cells.every(td => td.getAttribute('bgcolor') === 'ffffbb')
 
+    if (!cells[1] || !cells[1].childNodes[0]) {
+      return null
+    }
     const timeCell = cells[1].childNodes
-    const [startTime, endTime] = timeCell[0].textContent!.trim().split(' – ')
+    const timeText = timeCell[0].textContent?.trim()
+    if (!timeText) {
+      return null
+    }
+    const [startTime, endTime] = timeText.split(' – ')
     lesson.time = {
       start: startTime ?? '',
       end: endTime ?? ''
     }
     if (timeCell[2]) {
-      lesson.time.hint = timeCell[2].textContent!.trim()
+      lesson.time.hint = timeCell[2].textContent?.trim()
     }
 
     try {
+      if (!cells[3].childNodes[0]) {
+        throw new Error('Subject node not found')
+      }
       lesson.subject = cells[3].childNodes[0].textContent!.trim()
 
       const teacherCell = cells[3].childNodes[2]
@@ -40,10 +50,21 @@ const parseLesson = (row: Element): Lesson | null => {
 
       const placeCell = cells[3].childNodes[3]
 
-      if (placeCell) {
-        lesson.place = {
-          address: placeCell.childNodes[1].textContent!.trim(),
-          classroom: placeCell.childNodes[3].textContent!.trim().match(/^Кабинет: ([^ ]+)(-2)?$/)![1]
+      if (placeCell && placeCell.childNodes.length > 0) {
+        const addressNode = placeCell.childNodes[1]
+        const classroomNode = placeCell.childNodes[3]
+        
+        if (addressNode && classroomNode) {
+          const address = addressNode.textContent?.trim()
+          const classroomText = classroomNode.textContent?.trim()
+          const classroomMatch = classroomText?.match(/^Кабинет: ([^ ]+)(-2)?$/)
+          
+          if (address && classroomMatch) {
+            lesson.place = {
+              address,
+              classroom: classroomMatch[1]
+            }
+          }
         }
       }
     } catch(e) {
@@ -51,17 +72,25 @@ const parseLesson = (row: Element): Lesson | null => {
       lesson.fallbackDiscipline = cells[3].textContent?.trim()
     }
 
-    lesson.topic = cells[4].textContent!.trim()
+    if (cells[4]) {
+      lesson.topic = cells[4].textContent?.trim() || ''
+    }
 
     lesson.resources = []
-    Array.from(cells[5].querySelectorAll('a'))
-      .forEach(a => {
-        lesson.resources.push({
-          type: 'link',
-          title: a.textContent!.trim(),
-          url: a.getAttribute('href')!
+    if (cells[5]) {
+      Array.from(cells[5].querySelectorAll('a'))
+        .forEach(a => {
+          const title = a.textContent?.trim()
+          const url = a.getAttribute('href')
+          if (title && url) {
+            lesson.resources.push({
+              type: 'link',
+              title,
+              url
+            })
+          }
         })
-      })
+    }
 
     return lesson
   } catch(e) {
