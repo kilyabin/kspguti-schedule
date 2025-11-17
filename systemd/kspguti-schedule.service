@@ -1,0 +1,39 @@
+[Unit]
+Description=KSPGUTI Schedule - Next.js Application
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/kspguti-schedule
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+# Uncomment and set your environment variables:
+# Environment=PROXY_URL=https://lk.ks.psuti.ru
+# Environment=PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_BOTAPI_TOKEN=your_token_here
+# Environment=PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_CHAT_ID=your_chat_id_here
+
+# Load environment variables from file (optional)
+# EnvironmentFile=/opt/kspguti-schedule/.env.production
+
+# Use standalone server from Next.js build
+ExecStart=/usr/bin/node /opt/kspguti-schedule/.next/standalone/server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kspguti-schedule
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/kspguti-schedule
+
+[Install]
+WantedBy=multi-user.target
+

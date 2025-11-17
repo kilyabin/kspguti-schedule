@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f package-lock.json ]; then \
-    npm ci; \
+    npm ci --legacy-peer-deps; \
   elif [ -f pnpm-lock.yaml ]; then \
     corepack enable pnpm && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile; \
   else \

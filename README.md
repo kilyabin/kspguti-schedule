@@ -87,6 +87,98 @@ The Dockerfile uses Next.js standalone output for optimized production builds. T
 - Health checks
 - Production optimizations
 
+#### System installation (Linux systemd)
+
+Install the application directly on a Linux system as a systemd service:
+
+**Prerequisites:**
+- Linux system with systemd
+- Node.js 20+ installed
+- Root/sudo access
+
+**Installation:**
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd kspguti-schedule
+
+# Run the installation script
+sudo ./scripts/install.sh
+```
+
+The installation script will:
+- Check Node.js and npm versions
+- Copy files to `/opt/kspguti-schedule`
+- Install dependencies
+- Build the production version
+- Install and enable systemd service
+
+**Configuration:**
+
+1. Edit environment variables:
+```bash
+sudo nano /opt/kspguti-schedule/.env.production
+```
+
+2. Update systemd service if needed:
+```bash
+sudo nano /etc/systemd/system/kspguti-schedule.service
+```
+
+**Managing the service:**
+
+Use the management script for easy service control:
+
+```bash
+# Start the service
+sudo ./scripts/manage.sh start
+
+# Stop the service
+sudo ./scripts/manage.sh stop
+
+# Restart the service
+sudo ./scripts/manage.sh restart
+
+# Check status
+./scripts/manage.sh status
+
+# View logs
+./scripts/manage.sh logs
+./scripts/manage.sh logs -f  # Follow logs
+
+# Update application
+sudo ./scripts/manage.sh update
+
+# Enable/disable autostart
+sudo ./scripts/manage.sh enable
+sudo ./scripts/manage.sh disable
+```
+
+Or use systemctl directly:
+
+```bash
+sudo systemctl start kspguti-schedule
+sudo systemctl stop kspguti-schedule
+sudo systemctl restart kspguti-schedule
+sudo systemctl status kspguti-schedule
+sudo journalctl -u kspguti-schedule -f
+```
+
+**Service configuration:**
+
+- Installation directory: `/opt/kspguti-schedule`
+- Service user: `www-data`
+- Port: `3000` (configurable via environment variables)
+- Logs: `journalctl -u kspguti-schedule`
+
+**Environment variables:**
+
+See `.env.production.example` for available options:
+- `PROXY_URL` - URL for schedule parsing (optional)
+- `PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_BOTAPI_TOKEN` - Telegram bot token (optional)
+- `PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_CHAT_ID` - Telegram chat ID (optional)
+
 #### Other platforms
 
 The project can be deployed to any platform supporting Node.js 20+:
