@@ -51,7 +51,7 @@ export function NavBar({ cacheAvailableFor }: {
             <AddGroupButton />
           </ul>
           <div className='flex gap-1 min-[500px]:gap-2'>
-            <Link href='https://github.com/VityaSchel/kspguti-schedule' target='_blank' rel='nofollower noreferrer'>
+            <Link href='https://github.com/kilyabin/kspguti-schedule' target='_blank' rel='nofollower noreferrer'>
               <Button variant='outline' size='icon' tabIndex={-1}>
                 <FaGithub />
               </Button>
