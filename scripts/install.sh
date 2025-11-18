@@ -23,6 +23,39 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Detect distribution and suggest ICU installation if needed
+detect_and_suggest_icu() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        case $ID in
+            arch|manjaro)
+                echo -e "${YELLOW}Detected Arch Linux. Installing ICU library...${NC}"
+                pacman -Sy --noconfirm icu 2>/dev/null || {
+                    echo -e "${YELLOW}Could not auto-install ICU. Please run manually:${NC}"
+                    echo -e "${GREEN}sudo pacman -S icu${NC}"
+                }
+                ;;
+            ubuntu|debian)
+                echo -e "${YELLOW}Detected Debian/Ubuntu. Installing ICU library...${NC}"
+                apt-get update -qq && apt-get install -y libicu-dev 2>/dev/null || {
+                    echo -e "${YELLOW}Could not auto-install ICU. Please run manually:${NC}"
+                    echo -e "${GREEN}sudo apt-get install libicu-dev${NC}"
+                }
+                ;;
+            fedora|rhel|centos)
+                echo -e "${YELLOW}Detected Fedora/RHEL/CentOS. Installing ICU library...${NC}"
+                dnf install -y libicu 2>/dev/null || yum install -y libicu 2>/dev/null || {
+                    echo -e "${YELLOW}Could not auto-install ICU. Please run manually:${NC}"
+                    echo -e "${GREEN}sudo dnf install libicu${NC} or ${GREEN}sudo yum install libicu${NC}"
+                }
+                ;;
+            *)
+                echo -e "${YELLOW}Unknown distribution. Please install ICU library manually.${NC}"
+                ;;
+        esac
+    fi
+}
+
 # Check Node.js version
 echo -e "${YELLOW}Checking Node.js...${NC}"
 if ! command -v node &> /dev/null; then
@@ -30,13 +63,34 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-NODE_VER=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VER" -lt "$NODE_VERSION" ]; then
-    echo -e "${RED}Node.js version ${NODE_VERSION}+ is required. Current version: $(node -v)${NC}"
+# Try to get Node.js version, handle errors gracefully
+NODE_VERSION_OUTPUT=$(node -v 2>&1)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Error running Node.js: $NODE_VERSION_OUTPUT${NC}"
+    echo -e "${YELLOW}This might be due to missing system libraries (ICU).${NC}"
+    echo -e "${YELLOW}Attempting to install ICU library...${NC}"
+    detect_and_suggest_icu
+    echo -e "${YELLOW}Retrying Node.js check...${NC}"
+    sleep 2
+    NODE_VERSION_OUTPUT=$(node -v 2>&1)
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Still cannot run Node.js. Please install ICU library manually and try again.${NC}"
+        exit 1
+    fi
+fi
+
+NODE_VER=$(echo "$NODE_VERSION_OUTPUT" | cut -d'v' -f2 | cut -d'.' -f1)
+if [ -z "$NODE_VER" ] || ! [[ "$NODE_VER" =~ ^[0-9]+$ ]]; then
+    echo -e "${RED}Could not determine Node.js version. Output: $NODE_VERSION_OUTPUT${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}Node.js version: $(node -v)${NC}"
+if [ "$NODE_VER" -lt "$NODE_VERSION" ]; then
+    echo -e "${RED}Node.js version ${NODE_VERSION}+ is required. Current version: $NODE_VERSION_OUTPUT${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}Node.js version: $NODE_VERSION_OUTPUT${NC}"
 
 # Check npm
 if ! command -v npm &> /dev/null; then
@@ -44,7 +98,23 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}npm version: $(npm -v)${NC}\n"
+# Try to get npm version, handle errors gracefully
+NPM_VERSION_OUTPUT=$(npm -v 2>&1)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Error running npm: $NPM_VERSION_OUTPUT${NC}"
+    echo -e "${YELLOW}This might be due to missing system libraries (ICU).${NC}"
+    echo -e "${YELLOW}Attempting to install ICU library...${NC}"
+    detect_and_suggest_icu
+    echo -e "${YELLOW}Retrying npm check...${NC}"
+    sleep 2
+    NPM_VERSION_OUTPUT=$(npm -v 2>&1)
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Still cannot run npm. Please install ICU library manually and try again.${NC}"
+        exit 1
+    fi
+fi
+
+echo -e "${GREEN}npm version: $NPM_VERSION_OUTPUT${NC}\n"
 
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
