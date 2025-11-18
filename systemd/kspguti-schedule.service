@@ -17,7 +17,7 @@ Environment=HOSTNAME=0.0.0.0
 # Environment=PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_CHAT_ID=your_chat_id_here
 
 # Load environment variables from file (optional)
-# EnvironmentFile=/opt/kspguti-schedule/.env.production
+# EnvironmentFile=/opt/kspguti-schedule/.env
 
 # Use standalone server from Next.js build
 ExecStart=/usr/bin/node /opt/kspguti-schedule/.next/standalone/server.js
