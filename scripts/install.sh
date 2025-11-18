@@ -155,13 +155,34 @@ npm ci --legacy-peer-deps --production=false
 echo -e "${YELLOW}Building the application...${NC}"
 npm run build
 
+# Check if service user exists, create if not
+echo -e "${YELLOW}Checking service user...${NC}"
+if ! id "$SERVICE_USER" &>/dev/null; then
+    echo -e "${YELLOW}User $SERVICE_USER does not exist. Creating...${NC}"
+    # Try to create user, fallback to current user if fails
+    if useradd -r -s /bin/false -d "$INSTALL_DIR" "$SERVICE_USER" 2>/dev/null; then
+        echo -e "${GREEN}User $SERVICE_USER created${NC}"
+    else
+        echo -e "${YELLOW}Could not create user $SERVICE_USER. Using current user instead.${NC}"
+        SERVICE_USER=$(whoami)
+        SERVICE_GROUP=$(id -gn)
+    fi
+else
+    echo -e "${GREEN}User $SERVICE_USER exists${NC}"
+fi
+
 # Set ownership
 echo -e "${YELLOW}Setting ownership...${NC}"
 chown -R "$SERVICE_USER:$SERVICE_GROUP" "$INSTALL_DIR"
 
 # Install systemd service
 echo -e "${YELLOW}Installing systemd service...${NC}"
-cp "$INSTALL_DIR/systemd/$SERVICE_NAME.service" "/etc/systemd/system/"
+# Create temporary service file with correct user/group
+cp "$INSTALL_DIR/systemd/$SERVICE_NAME.service" "/tmp/$SERVICE_NAME.service"
+# Update user/group in service file
+sed -i "s/^User=.*/User=$SERVICE_USER/g; s/^Group=.*/Group=$SERVICE_GROUP/g" "/tmp/$SERVICE_NAME.service"
+cp "/tmp/$SERVICE_NAME.service" "/etc/systemd/system/$SERVICE_NAME.service"
+rm -f "/tmp/$SERVICE_NAME.service"
 systemctl daemon-reload
 
 # Enable service

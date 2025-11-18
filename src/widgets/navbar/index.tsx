@@ -9,6 +9,7 @@ import { FaGithub } from 'react-icons/fa'
 import cx from 'classnames'
 import { NavContext, NavContextProvider } from '@/shared/context/nav-context'
 import { groups } from '@/shared/data/groups'
+import { GITHUB_REPO_URL } from '@/shared/constants/urls'
 
 export function NavBar({ cacheAvailableFor }: {
   cacheAvailableFor: string[]
@@ -51,7 +52,7 @@ export function NavBar({ cacheAvailableFor }: {
             <AddGroupButton />
           </ul>
           <div className='flex gap-1 min-[500px]:gap-2'>
-            <Link href='https://github.com/kilyabin/kspguti-schedule' target='_blank' rel='nofollower noreferrer'>
+            <Link href={GITHUB_REPO_URL} target='_blank' rel='nofollower noreferrer'>
               <Button variant='outline' size='icon' tabIndex={-1}>
                 <FaGithub />
               </Button>
