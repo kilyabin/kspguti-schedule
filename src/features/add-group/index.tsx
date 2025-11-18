@@ -13,6 +13,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { BsTelegram } from 'react-icons/bs'
 import { SlSocialVkontakte } from 'react-icons/sl'
+import { TELEGRAM_CONTACT_URL } from '@/shared/constants/urls'
 
 export function AddGroupButton() {
   const [popupVisible, setPopupVisible] = React.useState(false)
@@ -48,7 +49,7 @@ function Popup({ open, onClose }: {
         <DialogDescription>
         </DialogDescription>
         <DialogFooter className='!justify-start !flex-row mt-3 gap-3'>
-          <Link href='https://t.me/ilyakm'>
+          <Link href={TELEGRAM_CONTACT_URL}>
             <Button tabIndex={-1} className='gap-3'><BsTelegram /> Мой Telegram</Button>
           </Link>
         </DialogFooter>

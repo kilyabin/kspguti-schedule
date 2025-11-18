@@ -3,4 +3,4 @@ Disallow: /
 Allow: /ps7
 Allow: /pks35k
 
-Sitemap: https://kspsuti.ru/sitemap.xml
+Sitemap: https://schedule.itlxrd.space/sitemap.xml

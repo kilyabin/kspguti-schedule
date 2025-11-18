@@ -6,6 +6,7 @@ import { NextSerialized, nextDeserialized, nextSerialized } from '@/app/utils/da
 import { NavBar } from '@/widgets/navbar'
 import { LastUpdateAt } from '@/entities/last-update-at'
 import { groups } from '@/shared/data/groups'
+import { SITE_URL } from '@/shared/constants/urls'
 import crypto from 'crypto'
 import React from 'react'
 import { getDayOfWeek } from '@/shared/utils'
@@ -47,7 +48,7 @@ export default function HomePage(props: NextSerialized<PageProps>) {
     <>
       <Head>
         <title>{`Группа ${group.name} — Расписание занятий в Колледже Связи`}</title>
-        <link rel="canonical" href={`https://kspsuti.ru/${group.id}`} />
+        <link rel="canonical" href={`${SITE_URL}/${group.id}`} />
         <meta name="description" content={`Расписание занятий группы ${group.name} на неделю в Колледже Связи ПГУТИ. Расписание пар, материалы для подготовки и изменения в расписании.`} />
         <meta property="og:title" content={`Группа ${group.name} — Расписание занятий в Колледже Связи`} />
         <meta property="og:description" content={`Расписание занятий группы ${group.name} на неделю в Колледже Связи ПГУТИ. Расписание пар, материалы для подготовки и изменения в расписании.`} />
