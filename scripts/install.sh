@@ -164,6 +164,24 @@ npm ci --legacy-peer-deps --production=false
 echo -e "${YELLOW}Building the application...${NC}"
 npm run build
 
+# Ensure public directory is accessible in standalone build
+echo -e "${YELLOW}Setting up static files...${NC}"
+# In standalone mode, public should be in the root, which is already copied
+# But we need to ensure .next/static is properly linked/copied
+if [ -d "$INSTALL_DIR/.next/standalone" ]; then
+    # Copy public to standalone directory if it's not there
+    if [ ! -d "$INSTALL_DIR/.next/standalone/public" ]; then
+        cp -r "$INSTALL_DIR/public" "$INSTALL_DIR/.next/standalone/public" 2>/dev/null || true
+    fi
+    # Ensure .next/static is accessible from standalone
+    if [ ! -d "$INSTALL_DIR/.next/standalone/.next" ]; then
+        mkdir -p "$INSTALL_DIR/.next/standalone/.next"
+    fi
+    if [ ! -d "$INSTALL_DIR/.next/standalone/.next/static" ]; then
+        cp -r "$INSTALL_DIR/.next/static" "$INSTALL_DIR/.next/standalone/.next/static" 2>/dev/null || true
+    fi
+fi
+
 # Check if service user exists, create if not
 echo -e "${YELLOW}Checking service user...${NC}"
 if ! id "$SERVICE_USER" &>/dev/null; then
