@@ -95,6 +95,10 @@ Install the application directly on a Linux system as a systemd service:
 - Linux system with systemd
 - Node.js 20+ installed
 - Root/sudo access
+- ICU library (for Node.js):
+  - Arch Linux: `sudo pacman -S icu`
+  - Ubuntu/Debian: `sudo apt-get install libicu-dev`
+  - Fedora/RHEL/CentOS: `sudo dnf install libicu` or `sudo yum install libicu`
 
 **Installation:**
 
