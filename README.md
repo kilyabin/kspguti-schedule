@@ -122,8 +122,13 @@ The installation script will:
 
 1. Edit environment variables:
 ```bash
-sudo nano /opt/kspguti-schedule/.env.production
+sudo nano /opt/kspguti-schedule/.env
 ```
+
+The installation script will:
+- Copy `.env` file from source directory if it exists
+- Preserve existing `.env` in installation directory if it already exists
+- Create `.env` from `.env.production.example` if no `.env` file is found
 
 2. Update systemd service if needed:
 ```bash
@@ -178,7 +183,7 @@ sudo journalctl -u kspguti-schedule -f
 
 **Environment variables:**
 
-See `.env.production.example` for available options:
+See `.env.production.example` or `.example.env` for available options. The application uses `.env` file in production:
 - `PROXY_URL` - URL for schedule parsing (optional)
 - `PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_BOTAPI_TOKEN` - Telegram bot token (optional)
 - `PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_CHAT_ID` - Telegram chat ID (optional)

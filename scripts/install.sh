@@ -133,16 +133,25 @@ rsync -av --exclude='node_modules' \
           --exclude='.next' \
           --exclude='.git' \
           --exclude='*.log' \
-          --exclude='.env*' \
+          --exclude='.env.local' \
+          --exclude='.env.development' \
+          --exclude='.env.development.local' \
+          --exclude='.env.test' \
+          --exclude='.env.test.local' \
           --exclude='*.md' \
           "$PROJECT_DIR/" "$INSTALL_DIR/"
 
-# Create .env.production if it doesn't exist
-if [ ! -f "$INSTALL_DIR/.env.production" ]; then
-    echo -e "${YELLOW}Creating .env.production from example...${NC}"
+# Handle .env file
+if [ -f "$PROJECT_DIR/.env" ] && [ ! -f "$INSTALL_DIR/.env" ]; then
+    echo -e "${YELLOW}Copying .env file...${NC}"
+    cp "$PROJECT_DIR/.env" "$INSTALL_DIR/.env"
+elif [ -f "$INSTALL_DIR/.env" ]; then
+    echo -e "${GREEN}Using existing .env file in installation directory${NC}"
+else
+    echo -e "${YELLOW}No .env file found. Creating from example...${NC}"
     if [ -f "$INSTALL_DIR/.env.production.example" ]; then
-        cp "$INSTALL_DIR/.env.production.example" "$INSTALL_DIR/.env.production"
-        echo -e "${YELLOW}Please edit $INSTALL_DIR/.env.production with your configuration${NC}"
+        cp "$INSTALL_DIR/.env.production.example" "$INSTALL_DIR/.env"
+        echo -e "${YELLOW}Please edit $INSTALL_DIR/.env with your configuration${NC}"
     fi
 fi
 
@@ -191,7 +200,7 @@ systemctl enable "$SERVICE_NAME.service"
 
 echo -e "\n${GREEN}=== Installation completed successfully! ===${NC}\n"
 echo -e "${YELLOW}Next steps:${NC}"
-echo -e "1. Edit environment variables: ${GREEN}$INSTALL_DIR/.env.production${NC}"
+echo -e "1. Edit environment variables: ${GREEN}$INSTALL_DIR/.env${NC}"
 echo -e "2. Update systemd service if needed: ${GREEN}/etc/systemd/system/$SERVICE_NAME.service${NC}"
 echo -e "3. Start the service: ${GREEN}systemctl start $SERVICE_NAME${NC}"
 echo -e "4. Check status: ${GREEN}systemctl status $SERVICE_NAME${NC}"
