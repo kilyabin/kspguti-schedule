@@ -13,22 +13,32 @@ export type ScheduleResult = {
 }
 
 // ПС-7: 146
-export async function getSchedule(groupID: number, groupName: string, wk?: number): Promise<ScheduleResult> {
+export async function getSchedule(groupID: number, groupName: string, wk?: number, parseWeekNavigation: boolean = true): Promise<ScheduleResult> {
   const url = `${PROXY_URL}/?mn=2&obj=${groupID}${wk ? `&wk=${wk}` : ''}`
   const page = await fetch(url)
   // const page = { text: async () => mockContent, status: 200, headers: { get: (s: string) => s && 'text/html' } }
   const content = await page.text()
   const contentType = page.headers.get('content-type')
   if (page.status === 200 && contentType && contentTypeParser.parse(contentType).type === 'text/html') {
+    let dom: JSDOM | null = null
     try {
-      const root = new JSDOM(content, { url }).window.document
-      const result = parsePage(root, groupName, url)
-      return {
+      dom = new JSDOM(content, { url })
+      const root = dom.window.document
+      const result = parsePage(root, groupName, url, parseWeekNavigation)
+      const scheduleResult = {
         days: result.days,
         currentWk: result.currentWk || wk,
         availableWeeks: result.availableWeeks
       }
+      // Явно очищаем JSDOM для освобождения памяти
+      dom.window.close()
+      dom = null
+      return scheduleResult
     } catch(e) {
+      // Очищаем JSDOM даже в случае ошибки
+      if (dom) {
+        dom.window.close()
+      }
       console.error(`Error while parsing ${PROXY_URL}`)
       reportParserError(new Date().toISOString(), 'Не удалось сделать парсинг для группы', groupName)
       throw e
