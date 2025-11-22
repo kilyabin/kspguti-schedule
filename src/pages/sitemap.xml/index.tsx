@@ -1,9 +1,10 @@
 import { ISitemapField, getServerSideSitemapLegacy } from 'next-sitemap'
 import { GetServerSideProps } from 'next'
-import { groups } from '@/shared/data/groups'
+import { loadGroups } from '@/shared/data/groups-loader'
 import { SITEMAP_SITE_URL } from '@/shared/constants/urls'
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const groups = loadGroups()
   const fields = Object.keys(groups).map<ISitemapField>(group => (
     {
       loc: `${SITEMAP_SITE_URL}/${group}`,

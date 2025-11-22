@@ -1,0 +1,22 @@
+{
+  "ib4k": {
+    "parseId": 138,
+    "name": "ИБ-4к",
+    "course": 4
+  },
+  "ib5": {
+    "parseId": 144,
+    "name": "ИБ-5",
+    "course": 3
+  },
+  "ib6": {
+    "parseId": 145,
+    "name": "ИБ-6",
+    "course": 3
+  },
+  "ib7k": {
+    "parseId": 172,
+    "name": "ИБ-7к",
+    "course": 3
+  }
+}
