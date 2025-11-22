@@ -74,7 +74,66 @@
   * {
     @apply border-border;
   }
+  html {
+    height: 100%;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground;
+    min-height: 100%;
+    height: auto;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
+  #__next {
+    min-height: 100%;
+    height: auto;
+    position: relative;
+    width: 100%;
+  }
+  /* Улучшения для мобильных устройств */
+  @media (max-width: 768px) {
+    html {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      /* Предотвращение проблем с масштабированием при двойном тапе */
+      touch-action: pan-y;
+    }
+    body {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      height: auto;
+      min-height: 100vh;
+      /* Улучшение рендеринга на мобильных */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      /* Предотвращение выделения текста при тапе */
+      -webkit-tap-highlight-color: transparent;
+    }
+    #__next {
+      min-height: 100vh;
+      height: auto;
+    }
+    /* Улучшение работы с интерактивными элементами */
+    button, a, [role="button"] {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Улучшение работы с текстом */
+    p, span, div {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    /* Предотвращение горизонтального скролла */
+    * {
+      max-width: 100%;
+    }
+    img, video {
+      max-width: 100%;
+      height: auto;
+    }
   }
 }

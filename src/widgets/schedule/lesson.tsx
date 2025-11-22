@@ -34,6 +34,9 @@ export function Lesson({ lesson, width = 350 }: {
   const hasPlace = 'place' in lesson && lesson.place
 
   const isFallbackDiscipline = 'fallbackDiscipline' in lesson && lesson.fallbackDiscipline
+  const hasSubject = 'subject' in lesson && lesson.subject
+  const hasContent = hasSubject || (isFallbackDiscipline && lesson.fallbackDiscipline) || (lesson.topic && lesson.topic.trim())
+  const isCancelled = lesson.isChange && !hasContent
 
   const getTeacherPhoto = (url?: string) => {
     if(url) {
@@ -63,9 +66,9 @@ export function Lesson({ lesson, width = 350 }: {
     <Card className={`w-full ${width === 450 ? 'md:w-[450px] md:min-w-[450px] md:max-w-[450px]' : 'md:w-[350px] md:min-w-[350px] md:max-w-[350px]'} flex flex-col relative overflow-hidden snap-start scroll-ml-16 shrink-0`}> 
       {lesson.isChange && <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#ffc60026] to-[#95620026] pointer-events-none'></div>}
       <CardHeader>
-        <div className='flex gap-4'>
+        <div className='flex gap-2 md:gap-4'>
           {hasTeacher ? (
-            <Avatar>
+            <Avatar className="flex-shrink-0">
               <AvatarImage 
                 src={getTeacherPhoto(teacherObj?.picture)!} 
                 alt={lesson.teacher} 
@@ -76,45 +79,61 @@ export function Lesson({ lesson, width = 350 }: {
               </AvatarFallback>
             </Avatar>
           ) : (
-            <Avatar>
+            <Avatar className="flex-shrink-0">
               <AvatarFallback><MdSchool /></AvatarFallback>
             </Avatar>
           )}
-          <div className='flex flex-col gap-1'>
-            {'subject' in lesson && <CardTitle className='hyphens-auto'>{lesson.subject}</CardTitle>}
-            <CardDescription>
+          <div className='flex flex-col gap-1 min-w-0 flex-1'>
+            {isCancelled ? (
+              <CardTitle className='hyphens-auto break-words text-base md:text-lg'>Пары нет</CardTitle>
+            ) : (
+              hasSubject && <CardTitle className='hyphens-auto break-words text-base md:text-lg'>{lesson.subject}</CardTitle>
+            )}
+            <CardDescription className="text-xs md:text-sm">
               {lesson.time.start} - {lesson.time.end}{
               }{lesson.time.hint && <span className='font-bold'>&nbsp;({lesson.time.hint})</span>}
             </CardDescription>
-            {hasTeacher && lesson.teacher && (
-              <CardDescription className='text-sm font-medium'>
+            {!isCancelled && hasTeacher && lesson.teacher && (
+              <CardDescription className='text-xs md:text-sm font-medium break-words'>
                 {lesson.teacher}
               </CardDescription>
             )}
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {lesson.type && <><Badge>{lesson.type}</Badge>{' '}&nbsp;</>}
-        {isFallbackDiscipline && (
-          <span className='leading-relaxed hyphens-auto block'>{lesson.fallbackDiscipline}</span>
-        )}
-        {lesson.topic ? (
-          <span className='leading-relaxed hyphens-auto'>{lesson.topic}</span>
+      <CardContent className="text-sm md:text-base">
+        {isCancelled ? (
+          <span className='text-muted-foreground italic'>Пара отменена</span>
         ) : (
-          !isFallbackDiscipline  && <span className='text-border font-semibold'>Нет описания пары</span>
+          <>
+            {lesson.type && <><Badge className="text-xs md:text-sm">{lesson.type}</Badge>{' '}&nbsp;</>}
+            {isFallbackDiscipline && (
+              <span className='leading-relaxed hyphens-auto block break-words text-muted-foreground'>{lesson.fallbackDiscipline}</span>
+            )}
+            {lesson.topic ? (
+              <span className='leading-relaxed hyphens-auto break-words text-muted-foreground'>{lesson.topic}</span>
+            ) : (
+              !isFallbackDiscipline && hasSubject && <span className='text-border font-semibold'>Нет описания пары</span>
+            )}
+          </>
+        )}
+        {!isCancelled && ('place' in lesson && lesson.place) && (
+          <div className='flex flex-col text-muted-foreground text-xs break-words mt-3 md:hidden'>
+            <span className='flex items-center gap-2'><BsFillGeoAltFill /> <span className="break-words">{lesson.place.address}</span></span>
+            <span className='font-bold flex items-center gap-2'><RiGroup2Fill /> {lesson.place.classroom}</span>
+          </div>
         )}
       </CardContent>
-      {(Boolean(lesson.resources.length) || hasPlace) && (
-        <CardFooter className="flex justify-between mt-auto">
+      {!isCancelled && (Boolean(lesson.resources.length) || ('place' in lesson && lesson.place)) && (
+        <CardFooter className="flex flex-col sm:flex-row justify-between gap-2 mt-auto">
           {('place' in lesson && lesson.place) ? (
-            <div className='flex flex-col text-muted-foreground text-xs'>
-              <span className='flex items-center gap-2'><BsFillGeoAltFill /> {lesson.place.address}</span>
+            <div className='hidden md:flex flex-col text-muted-foreground text-xs break-words'>
+              <span className='flex items-center gap-2'><BsFillGeoAltFill /> <span className="break-words">{lesson.place.address}</span></span>
               <span className='font-bold flex items-center gap-2'><RiGroup2Fill /> {lesson.place.classroom}</span>
             </div>
           ) : <span />}
           {Boolean(lesson.resources.length) && (
-            <Button onClick={handleOpenResources}><AiOutlineFolderView />&nbsp;Материалы</Button>
+            <Button onClick={handleOpenResources} className="min-h-[44px] w-full sm:w-auto"><AiOutlineFolderView />&nbsp;Материалы</Button>
           )}
         </CardFooter>
       )}

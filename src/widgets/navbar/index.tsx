@@ -15,45 +15,25 @@ export function NavBar({ cacheAvailableFor }: {
   cacheAvailableFor: string[]
 }) {
   const { resolvedTheme } = useTheme()
-  const [schemeTheme, setSchemeTheme] = React.useState<string>()
-  const navRef = React.useRef<HTMLDivElement>(null)
-
-  const getSchemeTheme = () => {
-    if (typeof window !== 'undefined') {
-      return window.localStorage.getItem('theme') || document.querySelector('html')!.style.colorScheme
-    } else 
-      return 'light'
-  }
-
-  React.useEffect(() => {
-    setSchemeTheme(getSchemeTheme())
-  }, [])
-
-  const theme = resolvedTheme || schemeTheme
-
-  React.useEffect(() => {
-    if(theme === 'light') {
-      navRef.current?.classList.add('bg-slate-200')
-      navRef.current?.classList.remove('bg-slate-900')
-    } else {
-      navRef.current?.classList.add('bg-slate-900')
-      navRef.current?.classList.remove('bg-slate-200')
-    }
-  }, [theme])
+  const theme = resolvedTheme || 'light'
 
   return (
     <NavContextProvider cacheAvailableFor={cacheAvailableFor}>
       <header className="sticky top-0 w-full p-2 bg-background z-[1] pb-0 mb-2 shadow-header">
-        <nav className={cx('rounded-lg p-2 w-full flex justify-between', { 'bg-slate-200': theme === 'light', 'bg-slate-900': theme === 'dark' })} ref={navRef}>
-          <ul className="flex gap-2">
-            {Object.entries(groups).map(([id, [, name]]) => (
-              <NavBarItem key={id} url={`/${id}`}>{name}</NavBarItem>
-            ))}
-            <AddGroupButton />
-          </ul>
-          <div className='flex gap-1 min-[500px]:gap-2'>
+        <nav className={cx('rounded-lg p-2 w-full flex gap-2 md:justify-between', { 'bg-slate-200': theme === 'light', 'bg-slate-900': theme === 'dark' })}>
+          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+            <ul className="flex gap-2 flex-nowrap">
+              {Object.entries(groups).map(([id, [, name]]) => (
+                <NavBarItem key={id} url={`/${id}`}>{name}</NavBarItem>
+              ))}
+              <li className="flex-shrink-0">
+                <AddGroupButton />
+              </li>
+            </ul>
+          </div>
+          <div className='flex gap-1 min-[500px]:gap-2 flex-shrink-0'>
             <Link href={GITHUB_REPO_URL} target='_blank' rel='nofollower noreferrer'>
-              <Button variant='outline' size='icon' tabIndex={-1}>
+              <Button variant='outline' size='icon' className="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0" tabIndex={-1}>
                 <FaGithub />
               </Button>
             </Link>
@@ -72,27 +52,32 @@ function NavBarItem({ url, children }: React.PropsWithChildren<{
   const isActive = router.asPath === url
   const { cacheAvailableFor, isLoading, setIsLoading } = React.useContext(NavContext)
 
-  const handleStartLoading = async () => {
-    let isLoaded = false
-
-    const loadEnd = () => {
-      isLoaded = true
+  // Подписываемся на события роутера для сброса состояния загрузки
+  React.useEffect(() => {
+    const handleRouteChangeComplete = () => {
       setIsLoading(false)
     }
 
-    router.events.on('routeChangeComplete', loadEnd)
-    router.events.on('routeChangeError', loadEnd)
-
-    if (cacheAvailableFor.includes(url.slice(1))) {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      if(isLoaded) return
+    const handleRouteChangeError = () => {
+      setIsLoading(false)
     }
-    setIsLoading(url)
+
+    router.events.on('routeChangeComplete', handleRouteChangeComplete)
+    router.events.on('routeChangeError', handleRouteChangeError)
 
     return () => {
-      router.events.off('routeChangeComplete', loadEnd)
-      router.events.off('routeChangeError', loadEnd)
+      router.events.off('routeChangeComplete', handleRouteChangeComplete)
+      router.events.off('routeChangeError', handleRouteChangeError)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // router.events и setIsLoading стабильны, не требуют зависимостей
+
+  const handleStartLoading = async () => {
+    if (cacheAvailableFor.includes(url.slice(1))) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      if (isLoading && isLoading !== url) return
+    }
+    setIsLoading(url)
   }
 
   const button = (
@@ -100,6 +85,7 @@ function NavBarItem({ url, children }: React.PropsWithChildren<{
       tabIndex={-1} variant={isActive ? 'default' : 'secondary'} 
       disabled={Boolean(isLoading)}
       loading={isLoading === url}
+      className="min-h-[44px] whitespace-nowrap"
     >
       {children}
     </Button>
@@ -107,7 +93,7 @@ function NavBarItem({ url, children }: React.PropsWithChildren<{
 
   return (
     <li>
-      {isLoading ? (
+      {isLoading && isLoading === url ? (
         button
       ) : (
         <Link href={url} onClick={handleStartLoading}>

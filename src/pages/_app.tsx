@@ -1,16 +1,22 @@
 import '@/shared/styles/globals.css'
 import type { AppProps } from 'next/app'
 import { ThemeProvider } from '@/shared/providers/theme-provider'
+import Head from 'next/head'
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <Component {...pageProps} />
-    </ThemeProvider>
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+      </Head>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <Component {...pageProps} />
+      </ThemeProvider>
+    </>
   )
 }
