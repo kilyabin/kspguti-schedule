@@ -116,7 +116,7 @@ function NavBarItem({ url, children }: React.PropsWithChildren<{
   )
 
   return (
-    <li>
+    <>
       {isLoading && isLoading === url ? (
         button
       ) : (
@@ -124,6 +124,6 @@ function NavBarItem({ url, children }: React.PropsWithChildren<{
           {button}
         </Link>
       )}
-    </li>
+    </>
   )
 }

@@ -22,9 +22,10 @@ import { BsFillGeoAltFill } from 'react-icons/bs'
 import { RiGroup2Fill } from 'react-icons/ri'
 import { ResourcesDialog } from '@/widgets/schedule/resources-dialog'
 
-export function Lesson({ lesson, width = 350 }: {
+export function Lesson({ lesson, width = 350, animationDelay }: {
   lesson: LessonType
   width: number
+  animationDelay?: number
 }) {
   const [resourcesDialogOpened, setResourcesDialogOpened] = React.useState(false)
 
@@ -63,7 +64,12 @@ export function Lesson({ lesson, width = 350 }: {
   }
 
   return (
-    <Card className={`w-full ${width === 450 ? 'md:w-[450px] md:min-w-[450px] md:max-w-[450px]' : 'md:w-[350px] md:min-w-[350px] md:max-w-[350px]'} flex flex-col relative overflow-hidden snap-start scroll-ml-16 shrink-0`}> 
+    <Card 
+      className={`w-full ${width === 450 ? 'md:w-[450px] md:min-w-[450px] md:max-w-[450px]' : 'md:w-[350px] md:min-w-[350px] md:max-w-[350px]'} flex flex-col relative overflow-hidden snap-start scroll-ml-16 shrink-0 stagger-card`}
+      style={animationDelay !== undefined ? {
+        animationDelay: `${animationDelay}s`,
+      } as React.CSSProperties : undefined}
+    > 
       {lesson.isChange && <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#ffc60026] to-[#95620026] pointer-events-none'></div>}
       <CardHeader>
         <div className='flex gap-2 md:gap-4'>
