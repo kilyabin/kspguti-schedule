@@ -82,6 +82,33 @@ export default function HomePage(props: NextSerialized<PageProps>) {
 
 const cachedSchedules = new Map<string, { lastFetched: Date, results: ScheduleResult }>()
 const maxCacheDurationInMS = 1000 * 60 * 60
+const maxCacheSize = 50 // Максимальное количество записей в кэше (только текущие недели)
+
+// Очистка старых записей из кэша
+function cleanupCache() {
+  const now = Date.now()
+  const entriesToDelete: string[] = []
+  
+  // Находим устаревшие записи
+  for (const [key, value] of cachedSchedules.entries()) {
+    if (now - value.lastFetched.getTime() >= maxCacheDurationInMS) {
+      entriesToDelete.push(key)
+    }
+  }
+  
+  // Удаляем устаревшие записи
+  entriesToDelete.forEach(key => cachedSchedules.delete(key))
+  
+  // Если кэш все еще слишком большой, удаляем самые старые записи
+  if (cachedSchedules.size > maxCacheSize) {
+    const sortedEntries = Array.from(cachedSchedules.entries())
+      .sort((a, b) => a[1].lastFetched.getTime() - b[1].lastFetched.getTime())
+    
+    const toRemove = sortedEntries.slice(0, cachedSchedules.size - maxCacheSize)
+    toRemove.forEach(([key]) => cachedSchedules.delete(key))
+  }
+}
+
 export async function getServerSideProps(context: GetServerSidePropsContext<{ group: string }>): Promise<GetServerSidePropsResult<NextSerialized<PageProps>>> {
   const groups = loadGroups()
   const settings = loadSettings()
@@ -93,9 +120,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
     let scheduleResult: ScheduleResult
     let parsedAt
 
-    // Ключ кэша включает группу и неделю
-    const cacheKey = wk ? `${group}_${wk}` : group
-    const cachedSchedule = cachedSchedules.get(cacheKey)
+    // Очищаем старые записи из кэша перед использованием
+    cleanupCache()
+    
+    // Кэшируем только текущую неделю (без параметра wk)
+    // Если запрашивается конкретная неделя (wk указан), не используем кэш
+    const useCache = !wk
+    const cacheKey = group // Ключ кэша - только группа (текущая неделя)
+    const cachedSchedule = useCache ? cachedSchedules.get(cacheKey) : undefined
     
     if (cachedSchedule?.lastFetched && Date.now() - cachedSchedule.lastFetched.getTime() < maxCacheDurationInMS) {
       scheduleResult = cachedSchedule.results
@@ -103,9 +135,16 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
     } else {
       try {
         const groupInfo = groups[group]
-        scheduleResult = await getSchedule(groupInfo.parseId, groupInfo.name, wk)
+        // Передаем настройки в getSchedule для условного парсинга навигации
+        scheduleResult = await getSchedule(groupInfo.parseId, groupInfo.name, wk, settings.weekNavigationEnabled)
         parsedAt = new Date()
-        cachedSchedules.set(cacheKey, { lastFetched: new Date(), results: scheduleResult })
+        
+        // Кэшируем только текущую неделю
+        if (useCache) {
+          cachedSchedules.set(cacheKey, { lastFetched: new Date(), results: scheduleResult })
+          // Очищаем кэш после добавления новой записи, если он стал слишком большим
+          cleanupCache()
+        }
       } catch(e) {
         if (cachedSchedule?.lastFetched) {
           scheduleResult = cachedSchedule.results

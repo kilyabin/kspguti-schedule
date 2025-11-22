@@ -22,6 +22,11 @@ Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support.
 
 Tools used: pnpm, eslint, react-icons. Deployed with Netlify and supported by Cloudflare.
 
+## Known issues
+
+- Previous week cannot be accessed if you enter from main "/"
+Workaround: Locate to next week, then enter previous twice.
+
 ## Development
 
 ### Prerequisites
@@ -106,7 +111,9 @@ Install the application directly on a Linux system as a systemd service:
 # Clone the repository
 git clone <repository-url>
 cd kspguti-schedule
-
+# Copy example and edit .env
+cp .env.production.example .env
+nano .env
 # Run the installation script
 sudo ./scripts/install.sh
 ```

@@ -29,34 +29,24 @@ function parseWeekNavigation(document: Document, currentWeekNumber: number, curr
   const wkToWeekNumber = new Map<number, number>()
   
   // Ищем все ссылки, которые содержат параметр wk
+  // Используем более специфичные селекторы вместо перебора всех элементов
   const links = Array.from(document.querySelectorAll('a[href*="wk="]'))
   
-  // Также ищем ссылки в onclick и других атрибутах
+  // Также ищем ссылки в onclick (только для ссылок, не всех элементов)
   const linksWithOnclick = Array.from(document.querySelectorAll('a[onclick*="wk="], a[onclick*="wk"]'))
   
   // Ищем в формах
   const forms = Array.from(document.querySelectorAll('form[action*="wk="], form input[name="wk"]'))
   
-  // Ищем во всех элементах, которые могут содержать URL с wk
-  const allElements = Array.from(document.querySelectorAll('*'))
-  const elementsWithWk: Element[] = []
+  // Ищем в элементах с data-атрибутами (только те, которые могут содержать ссылки)
+  const elementsWithDataHref = Array.from(document.querySelectorAll('[data-href*="wk="]'))
   
-  for (const el of allElements) {
-    const href = el.getAttribute('href')
-    const onclick = el.getAttribute('onclick')
-    const action = el.getAttribute('action')
-    const dataHref = el.getAttribute('data-href')
-    
-    if ((href && href.includes('wk=')) ||
-        (onclick && onclick.includes('wk=')) ||
-        (action && action.includes('wk=')) ||
-        (dataHref && dataHref.includes('wk='))) {
-      elementsWithWk.push(el)
-    }
-  }
-  
-  // Объединяем все найденные элементы
-  const allLinkElements = [...links, ...linksWithOnclick, ...elementsWithWk]
+  // Объединяем все найденные элементы (убираем дубликаты)
+  const allLinkElementsSet = new Set<Element>()
+  links.forEach(el => allLinkElementsSet.add(el))
+  linksWithOnclick.forEach(el => allLinkElementsSet.add(el))
+  elementsWithDataHref.forEach(el => allLinkElementsSet.add(el))
+  const allLinkElements = Array.from(allLinkElementsSet)
   
   for (const link of allLinkElements) {
     // Пробуем извлечь wk из разных атрибутов
@@ -332,7 +322,7 @@ const parseLesson = (row: Element): Lesson | null => {
   }
 }
 
-export function parsePage(document: Document, groupName: string, url?: string): ParseResult {
+export function parsePage(document: Document, groupName: string, url?: string, shouldParseWeekNavigation: boolean = true): ParseResult {
   const tables = Array.from(document.querySelectorAll('body > table'))
   const table = tables.find(table => table.querySelector(':scope > tbody > tr:first-child')?.textContent?.trim() === groupName)
   const rows = Array.from(table!.children[0].children).filter(el => el.tagName === 'TR').slice(2)
@@ -382,11 +372,11 @@ export function parsePage(document: Document, groupName: string, url?: string): 
     }
   }
 
-  // Парсим навигацию по неделям
+  // Парсим навигацию по неделям только если включена навигация
   let availableWeeks: WeekInfo[] | undefined
   let finalCurrentWk = currentWk
   
-  if (currentWeekNumber) {
+  if (shouldParseWeekNavigation && currentWeekNumber) {
     availableWeeks = parseWeekNavigation(document, currentWeekNumber, currentWk)
     
     // Если не нашли ссылки, но есть текущий wk, добавляем текущую неделю
