@@ -18,5 +18,10 @@
     "parseId": 172,
     "name": "ИБ-7к",
     "course": 3
+  },
+  "ib3": {
+    "parseId": 123,
+    "name": "ИБ-3",
+    "course": 4
   }
 }

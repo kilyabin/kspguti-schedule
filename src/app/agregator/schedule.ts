@@ -1,21 +1,33 @@
 import { Day } from '@/shared/model/day'
-import { parsePage } from '@/app/parser/schedule'
+import { parsePage, ParseResult, WeekInfo } from '@/app/parser/schedule'
 import contentTypeParser from 'content-type'
 import { JSDOM } from 'jsdom'
 // import { content as mockContent } from './mock'
 import { reportParserError } from '@/app/logger'
 import { PROXY_URL } from '@/shared/constants/urls'
 
+export type ScheduleResult = {
+  days: Day[]
+  currentWk?: number
+  availableWeeks?: WeekInfo[]
+}
+
 // ПС-7: 146
-export async function getSchedule(groupID: number, groupName: string): Promise<Day[]> {
-  const page = await fetch(`${PROXY_URL}/?mn=2&obj=${groupID}`)
+export async function getSchedule(groupID: number, groupName: string, wk?: number): Promise<ScheduleResult> {
+  const url = `${PROXY_URL}/?mn=2&obj=${groupID}${wk ? `&wk=${wk}` : ''}`
+  const page = await fetch(url)
   // const page = { text: async () => mockContent, status: 200, headers: { get: (s: string) => s && 'text/html' } }
   const content = await page.text()
   const contentType = page.headers.get('content-type')
   if (page.status === 200 && contentType && contentTypeParser.parse(contentType).type === 'text/html') {
     try {
-      const root = new JSDOM(content).window.document
-      return parsePage(root, groupName)
+      const root = new JSDOM(content, { url }).window.document
+      const result = parsePage(root, groupName, url)
+      return {
+        days: result.days,
+        currentWk: result.currentWk || wk,
+        availableWeeks: result.availableWeeks
+      }
     } catch(e) {
       console.error(`Error while parsing ${PROXY_URL}`)
       reportParserError(new Date().toISOString(), 'Не удалось сделать парсинг для группы', groupName)
