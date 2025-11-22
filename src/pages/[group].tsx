@@ -5,7 +5,7 @@ import { getSchedule } from '@/app/agregator/schedule'
 import { NextSerialized, nextDeserialized, nextSerialized } from '@/app/utils/date-serializer'
 import { NavBar } from '@/widgets/navbar'
 import { LastUpdateAt } from '@/entities/last-update-at'
-import { groups } from '@/shared/data/groups'
+import { loadGroups, GroupsData } from '@/shared/data/groups-loader'
 import { SITE_URL } from '@/shared/constants/urls'
 import crypto from 'crypto'
 import React from 'react'
@@ -20,10 +20,11 @@ type PageProps = {
   }
   parsedAt: Date
   cacheAvailableFor: string[]
+  groups: GroupsData
 }
 
 export default function HomePage(props: NextSerialized<PageProps>) {
-  const { schedule, group, cacheAvailableFor, parsedAt } = nextDeserialized<PageProps>(props)
+  const { schedule, group, cacheAvailableFor, parsedAt, groups } = nextDeserialized<PageProps>(props)
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -47,7 +48,7 @@ export default function HomePage(props: NextSerialized<PageProps>) {
         <meta property="og:title" content={`Группа ${group.name} — Расписание занятий в Колледже Связи`} />
         <meta property="og:description" content={`Расписание занятий группы ${group.name} на неделю в Колледже Связи ПГУТИ. Расписание пар, материалы для подготовки и изменения в расписании.`} />
       </Head>
-      <NavBar cacheAvailableFor={cacheAvailableFor} />
+      <NavBar cacheAvailableFor={cacheAvailableFor} groups={groups} />
       <LastUpdateAt date={parsedAt} />
       <Schedule days={schedule} />
     </>
@@ -57,6 +58,7 @@ export default function HomePage(props: NextSerialized<PageProps>) {
 const cachedSchedules = new Map<string, { lastFetched: Date, results: Day[] }>()
 const maxCacheDurationInMS = 1000 * 60 * 60
 export async function getServerSideProps(context: GetServerSidePropsContext<{ group: string }>): Promise<GetServerSidePropsResult<NextSerialized<PageProps>>> {
+  const groups = loadGroups()
   const group = context.params?.group
   if (group && Object.hasOwn(groups, group) && group in groups) {
     let schedule
@@ -68,7 +70,8 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
       parsedAt = cachedSchedule.lastFetched
     } else {
       try {
-        schedule = await getSchedule(...groups[group])
+        const groupInfo = groups[group]
+        schedule = await getSchedule(groupInfo.parseId, groupInfo.name)
         parsedAt = new Date()
         cachedSchedules.set(group, { lastFetched: new Date(), results: schedule })
       } catch(e) {
@@ -109,9 +112,10 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
         parsedAt: parsedAt,
         group: {
           id: group,
-          name: groups[group][1]
+          name: groups[group].name
         },
-        cacheAvailableFor
+        cacheAvailableFor,
+        groups
       })
     }
   } else {

@@ -6,27 +6,51 @@ import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { FaGithub } from 'react-icons/fa'
+import { ArrowLeft } from 'lucide-react'
 import cx from 'classnames'
 import { NavContext, NavContextProvider } from '@/shared/context/nav-context'
-import { groups } from '@/shared/data/groups'
 import { GITHUB_REPO_URL } from '@/shared/constants/urls'
+import { GroupsData } from '@/shared/data/groups-loader'
 
-export function NavBar({ cacheAvailableFor }: {
+export function NavBar({ cacheAvailableFor, groups }: {
   cacheAvailableFor: string[]
+  groups: GroupsData
 }) {
   const { resolvedTheme } = useTheme()
-  const theme = resolvedTheme || 'light'
+  // Используем состояние для предотвращения проблем с гидратацией
+  const [mounted, setMounted] = React.useState(false)
+  
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // На сервере используем 'light' по умолчанию, чтобы избежать различий в гидратации
+  const theme = mounted ? (resolvedTheme || 'light') : 'light'
 
   return (
     <NavContextProvider cacheAvailableFor={cacheAvailableFor}>
       <header className="sticky top-0 w-full p-2 bg-background z-[1] pb-0 mb-2 shadow-header">
-        <nav className={cx('rounded-lg p-2 w-full flex gap-2 md:justify-between', { 'bg-slate-200': theme === 'light', 'bg-slate-900': theme === 'dark' })}>
+        <nav className={cx('rounded-lg p-2 w-full flex gap-2 md:justify-between', { 'bg-slate-200': theme === 'light', 'bg-slate-900': theme === 'dark' })} suppressHydrationWarning>
           <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
             <ul className="flex gap-2 flex-nowrap">
-              {Object.entries(groups).map(([id, [, name]]) => (
-                <NavBarItem key={id} url={`/${id}`}>{name}</NavBarItem>
-              ))}
               <li className="flex-shrink-0">
+                <Link href="/">
+                  <Button 
+                    variant="secondary" 
+                    className="min-h-[44px] whitespace-nowrap gap-2"
+                    tabIndex={-1}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="hidden sm:inline">К группам</span>
+                  </Button>
+                </Link>
+              </li>
+              {Object.entries(groups).map(([id, group]) => (
+                <li key={id} className="hidden md:list-item flex-shrink-0">
+                  <NavBarItem url={`/${id}`}>{group.name}</NavBarItem>
+                </li>
+              ))}
+              <li className="flex-shrink-0 hidden md:list-item">
                 <AddGroupButton />
               </li>
             </ul>
