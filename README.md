@@ -25,6 +25,7 @@ Tools used: pnpm, eslint, react-icons. Deployed with Netlify and supported by Cl
 ## Known issues
 
 - Previous week cannot be accessed if you enter from main "/"
+
 Workaround: Locate to next week, then enter previous twice.
 
 ## Development
