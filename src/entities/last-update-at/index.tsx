@@ -17,15 +17,16 @@ export function LastUpdateAt({ date }: {
 
   return (
     <>
-      <div className='flex md:justify-end px-4 md:h-0'>
-        <span className='text-sm text-border md:whitespace-pre-wrap md:text-right'>
+      <div className='flex md:justify-end px-2 md:px-4 md:h-0'>
+        <span className='text-xs md:text-sm text-muted-foreground md:whitespace-pre-wrap md:text-right'>
           Последнее обновление:{'\n'}{now && date.getTime() <= now ? formatDistanceStrict(date, now, { locale: dateFnsRuLocale, addSuffix: true }) : 'только что'}
         </span>
       </div>
 
+      {/* Отключено на мобильных для предотвращения зависаний */}
       {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
       {/* @ts-expect-error */}
-      {typeof window !== 'undefined' && ![d0, d1].includes(window[['l', 'o', 'c', 'a', 't', 'i', 'o', 'n'].join('')][['h', 'o', 's', 't', 'n', 'a', 'm', 'e'].join('')]) && (
+      {typeof window !== 'undefined' && window.innerWidth >= 768 && ![d0, d1].includes(window[['l', 'o', 'c', 'a', 't', 'i', 'o', 'n'].join('')][['h', 'o', 's', 't', 'n', 'a', 'm', 'e'].join('')]) && (
         <div 
           className={
             ['f', 'i', 'x', 'e', 'd', ' ', 'z', '-', '1', '0', ' ', 't', 'o', 'p', '-', '0', ' ', 'l', 'e', 'f', 't', '-', '0', ' ', 'w', '-', 'f', 'u', 'l', 'l', ' ', 'h', '-', 'f', 'u', 'l', 'l', ' ', 'b', 'g', '-', '[', 'l', 'e', 'n', 'g', 't', 'h', ':', '1', '0', '0', '%', '_', '1', '0', '0', '%', ']', ' ', 'o', 'p', 'a', 'c', 'i', 't', 'y', '-', '9', '0'].join('')

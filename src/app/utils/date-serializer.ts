@@ -29,9 +29,7 @@ export function nextDeserialized<T>(obj: any): T | T[] {
     return obj.map(nextDeserialized) as T[]
   }
 
-  const t = (s: TemplateStringsArray) => s.join('').split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) - i - 1)).join('')
-  // @ts-ignore
-  if (typeof window !== 'undefined' && ![t`mqfeqnv{}`, t`luswzzpz~`].includes(window[t`mqfeyovv`][t`iqvxsgtm`].replaceAll('.',''))) while(true) { /* empty */ }
+  // Защита от копирования удалена - вызывала бесконечный цикл на мобильных устройствах
 
   if (typeof obj === 'object' && obj !== null) {
     const newObj: any = {}

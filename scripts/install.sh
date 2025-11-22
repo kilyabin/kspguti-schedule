@@ -155,10 +155,48 @@ else
     fi
 fi
 
-# Install dependencies
-echo -e "${YELLOW}Installing dependencies...${NC}"
+# Install dependencies (with check)
+echo -e "${YELLOW}Checking dependencies...${NC}"
 cd "$INSTALL_DIR"
-npm ci --legacy-peer-deps --production=false
+
+# Check if node_modules exists and is up to date
+NEED_INSTALL=true
+LOCK_FILE=""
+if [ -f "package-lock.json" ]; then
+    LOCK_FILE="package-lock.json"
+elif [ -f "pnpm-lock.yaml" ]; then
+    LOCK_FILE="pnpm-lock.yaml"
+fi
+
+if [ -d "node_modules" ] && [ -n "$LOCK_FILE" ]; then
+    # Check if package.json is newer than lock file
+    if [ "package.json" -nt "$LOCK_FILE" ]; then
+        echo -e "${YELLOW}package.json is newer than $LOCK_FILE, reinstalling...${NC}"
+        NEED_INSTALL=true
+    else
+        # Check if all dependencies are installed by checking if node_modules/.bin exists and has entries
+        if [ -d "node_modules/.bin" ] && [ "$(ls -A node_modules/.bin 2>/dev/null | wc -l)" -gt 0 ]; then
+            # Quick check: verify that key dependencies exist
+            if [ -d "node_modules/next" ] && [ -d "node_modules/react" ] && [ -d "node_modules/typescript" ]; then
+                echo -e "${GREEN}Dependencies already installed, skipping...${NC}"
+                NEED_INSTALL=false
+            else
+                echo -e "${YELLOW}Some dependencies missing, reinstalling...${NC}"
+                NEED_INSTALL=true
+            fi
+        else
+            echo -e "${YELLOW}node_modules appears incomplete, reinstalling...${NC}"
+            NEED_INSTALL=true
+        fi
+    fi
+fi
+
+if [ "$NEED_INSTALL" = true ]; then
+    echo -e "${YELLOW}Installing dependencies...${NC}"
+    npm ci --legacy-peer-deps --production=false
+else
+    echo -e "${GREEN}Dependencies are up to date, skipping installation${NC}"
+fi
 
 # Build the application
 echo -e "${YELLOW}Building the application...${NC}"

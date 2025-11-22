@@ -26,23 +26,17 @@ export default function HomePage(props: NextSerialized<PageProps>) {
   const { schedule, group, cacheAvailableFor, parsedAt } = nextDeserialized<PageProps>(props)
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if ('scrollRestoration' in history) {
-        history.scrollRestoration = 'manual'
-      }
-      const interval = setInterval(async () => {
-        const today = getDayOfWeek(new Date())
-        const todayBlock = document.getElementById(today)
-        if (todayBlock) {
-          const GAP = 48
-          const HEADER_HEIGHT = 64
-          window.scrollTo({ top: todayBlock.offsetTop - GAP - HEADER_HEIGHT })
-          clearInterval(interval)
-        }
-        await new Promise(resolve => setTimeout(resolve, 100))
-      })
+    if (typeof window === 'undefined') return
+
+    // Используем 'auto' для нормальной работы обновления страницы
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'auto'
     }
-  }, [schedule])
+
+    // Отключаем автоматическую прокрутку на мобильных, чтобы избежать зависаний
+    // Пользователь может прокрутить страницу вручную
+    // Автоматическая прокрутка может блокировать рендеринг и вызывать зависания
+  }, [])
 
   return (
     <>
