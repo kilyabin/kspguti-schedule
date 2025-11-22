@@ -1,14 +1,27 @@
 import type { Day as DayType } from '@/shared/model/day'
 import { Day } from '@/widgets/schedule/day'
+import { WeekNavigation } from '@/widgets/schedule/week-navigation'
 import { useRouter } from 'next/router'
 import React from 'react'
 import { getDayOfWeek } from '@/shared/utils'
+import { WeekInfo } from '@/app/parser/schedule'
 
-export function Schedule({ days }: {
+export function Schedule({ 
+  days,
+  currentWk,
+  availableWeeks,
+  weekNavigationEnabled = true
+}: {
   days: DayType[]
+  currentWk: number | null | undefined
+  availableWeeks: WeekInfo[] | null | undefined
+  weekNavigationEnabled?: boolean
 }) {
   const group = useRouter().query['group']
   const hasScrolledRef = React.useRef(false)
+  
+  // Определяем текущий номер недели из дней
+  const currentWeekNumber = days.length > 0 ? days[0]?.weekNumber : undefined
 
   React.useEffect(() => {
     if (hasScrolledRef.current || typeof window === 'undefined') return
@@ -49,6 +62,13 @@ export function Schedule({ days }: {
 
   return (
     <div className="flex flex-col p-4 md:p-8 lg:p-16 gap-6 md:gap-12 lg:gap-14">
+      {weekNavigationEnabled && (
+        <WeekNavigation 
+          currentWk={currentWk}
+          availableWeeks={availableWeeks}
+          currentWeekNumber={currentWeekNumber}
+        />
+      )}
       {days.map((day, i) => (
         <div
           key={`${group}_day${i}`}

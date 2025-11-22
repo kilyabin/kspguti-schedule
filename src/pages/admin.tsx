@@ -13,19 +13,22 @@ import {
   DialogTitle,
 } from '@/shadcn/ui/dialog'
 import { loadGroups, GroupsData } from '@/shared/data/groups-loader'
+import { loadSettings, AppSettings } from '@/shared/data/settings-loader'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shadcn/ui/select'
 import Head from 'next/head'
 
 type AdminPageProps = {
   groups: GroupsData
+  settings: AppSettings
 }
 
-export default function AdminPage({ groups: initialGroups }: AdminPageProps) {
+export default function AdminPage({ groups: initialGroups, settings: initialSettings }: AdminPageProps) {
   const [authenticated, setAuthenticated] = React.useState<boolean | null>(null)
   const [password, setPassword] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [groups, setGroups] = React.useState<GroupsData>(initialGroups)
+  const [settings, setSettings] = React.useState<AppSettings>(initialSettings)
   const [editingGroup, setEditingGroup] = React.useState<{ id: string; parseId: number; name: string; course: number } | null>(null)
   const [showAddDialog, setShowAddDialog] = React.useState(false)
   const [showEditDialog, setShowEditDialog] = React.useState(false)
@@ -72,8 +75,9 @@ export default function AdminPage({ groups: initialGroups }: AdminPageProps) {
       if (res.ok && data.success) {
         setAuthenticated(true)
         setPassword('')
-        // Обновляем список групп после авторизации
+        // Обновляем список групп и настроек после авторизации
         await loadGroupsList()
+        await loadSettingsList()
       } else {
         setError(data.error || 'Ошибка авторизации')
       }
@@ -93,6 +97,43 @@ export default function AdminPage({ groups: initialGroups }: AdminPageProps) {
       }
     } catch (err) {
       console.error('Error loading groups:', err)
+    }
+  }
+
+  const loadSettingsList = async () => {
+    try {
+      const res = await fetch('/api/admin/settings')
+      const data = await res.json()
+      if (data.settings) {
+        setSettings(data.settings)
+      }
+    } catch (err) {
+      console.error('Error loading settings:', err)
+    }
+  }
+
+  const handleUpdateSettings = async (newSettings: AppSettings) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setSettings(data.settings)
+      } else {
+        setError(data.error || 'Ошибка при обновлении настроек')
+      }
+    } catch (err) {
+      setError('Ошибка соединения с сервером')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -286,6 +327,35 @@ export default function AdminPage({ groups: initialGroups }: AdminPageProps) {
               {error}
             </div>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Настройки</CardTitle>
+              <CardDescription>Управление настройками приложения</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="font-semibold">Навигация по неделям</div>
+                    <div className="text-sm text-muted-foreground">
+                      Включить или выключить навигацию по неделям в расписании
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.weekNavigationEnabled}
+                      onChange={(e) => handleUpdateSettings({ ...settings, weekNavigationEnabled: e.target.checked })}
+                      disabled={loading}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
+                  </label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -516,9 +586,11 @@ export default function AdminPage({ groups: initialGroups }: AdminPageProps) {
 
 export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () => {
   const groups = loadGroups()
+  const settings = loadSettings()
   return {
     props: {
-      groups
+      groups,
+      settings
     }
   }
 }
