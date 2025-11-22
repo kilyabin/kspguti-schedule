@@ -50,7 +50,15 @@ export function Schedule({ days }: {
   return (
     <div className="flex flex-col p-4 md:p-8 lg:p-16 gap-6 md:gap-12 lg:gap-14">
       {days.map((day, i) => (
-        <Day day={day} key={`${group}_day${i}`} />
+        <div
+          key={`${group}_day${i}`}
+          className="stagger-card"
+          style={{
+            animationDelay: `${i * 0.1}s`,
+          } as React.CSSProperties}
+        >
+          <Day day={day} />
+        </div>
       ))}
     </div>
   )

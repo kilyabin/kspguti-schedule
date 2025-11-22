@@ -1,3 +1,4 @@
+import React from 'react'
 import type { Day as DayType } from '@/shared/model/day'
 import { getDayOfWeek } from '@/shared/utils'
 import { Lesson } from '@/widgets/schedule/lesson'
@@ -48,9 +49,10 @@ export function Day({ day }: {
             <div className='snap-start hidden md:block' style={{ flex: '0 0 3rem' }} />
             {day.lessons.map((lesson, i) => (
               <Lesson 
+                key={i}
                 width={longNames ? 450 : 350}
-                lesson={lesson} 
-                key={i} 
+                lesson={lesson}
+                animationDelay={i * 0.08}
               />
             ))}
             <div className='snap-start hidden md:block' style={{ flex: `0 0 calc(100vw - 4rem - ${longNames ? 450 : 350}px - 1rem)` }} />

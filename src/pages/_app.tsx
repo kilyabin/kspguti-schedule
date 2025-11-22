@@ -1,9 +1,25 @@
 import '@/shared/styles/globals.css'
 import type { AppProps } from 'next/app'
 import { ThemeProvider } from '@/shared/providers/theme-provider'
+import { LoadingContextProvider, LoadingContext } from '@/shared/context/loading-context'
+import { LoadingOverlay } from '@/shared/ui/loading-overlay'
 import Head from 'next/head'
+import React from 'react'
 
-export default function App({ Component, pageProps }: AppProps) {
+function AppContent({ Component, pageProps }: AppProps) {
+  const { isLoading } = React.useContext(LoadingContext)
+
+  return (
+    <>
+      <div className="page-transition-wrapper">
+        <Component {...pageProps} />
+      </div>
+      <LoadingOverlay isLoading={isLoading} />
+    </>
+  )
+}
+
+export default function App(props: AppProps) {
   return (
     <>
       <Head>
@@ -15,7 +31,9 @@ export default function App({ Component, pageProps }: AppProps) {
         enableSystem
         disableTransitionOnChange
       >
-        <Component {...pageProps} />
+        <LoadingContextProvider>
+          <AppContent {...props} />
+        </LoadingContextProvider>
       </ThemeProvider>
     </>
   )

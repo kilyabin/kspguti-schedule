@@ -9,6 +9,16 @@
   margin-right: 8px;
 }
 
+.spinnerLarge {
+  width: 64px;
+  height: 64px;
+  border-width: 4px;
+  margin-right: 0;
+  border-color: hsl(var(--foreground) / 0.3);
+  border-left-color: hsl(var(--foreground));
+  border-top-color: hsl(var(--foreground));
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
