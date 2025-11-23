@@ -52,3 +52,5 @@ export default function protectedHandler(
   return requireAuth(req, res, handler)
 }
 
+
+
