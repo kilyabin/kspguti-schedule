@@ -15,6 +15,10 @@ const nextConfig = {
     }
     return config
   },
+  // Указываем корневую директорию для устранения предупреждения о множественных lockfiles
+  turbopack: {
+    root: __dirname,
+  },
 }
 
 module.exports = nextConfig
