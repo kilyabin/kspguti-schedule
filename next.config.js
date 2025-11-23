@@ -15,9 +15,6 @@ const nextConfig = {
     }
     return config
   },
-  // Добавляем пустую конфигурацию Turbopack для устранения предупреждения
-  // Webpack конфигурация используется для production build
-  turbopack: {},
 }
 
 module.exports = nextConfig
