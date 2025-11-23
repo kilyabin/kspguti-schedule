@@ -209,22 +209,24 @@ fi
 echo -e "${YELLOW}Building the application...${NC}"
 npm run build
 
-# Ensure public directory is accessible in standalone build
+# Ensure public directory and static files are accessible in standalone build
 echo -e "${YELLOW}Setting up static files...${NC}"
-# In standalone mode, public should be in the root, which is already copied
-# But we need to ensure .next/static is properly linked/copied
 if [ -d "$INSTALL_DIR/.next/standalone" ]; then
-    # Copy public to standalone directory if it's not there
-    if [ ! -d "$INSTALL_DIR/.next/standalone/public" ]; then
+    # Copy public directory to standalone (always update)
+    if [ -d "$INSTALL_DIR/public" ]; then
+        echo -e "${YELLOW}Copying public directory to standalone...${NC}"
         cp -r "$INSTALL_DIR/public" "$INSTALL_DIR/.next/standalone/public" 2>/dev/null || true
     fi
-    # Ensure .next/static is accessible from standalone
-    if [ ! -d "$INSTALL_DIR/.next/standalone/.next" ]; then
+    # Copy .next/static to standalone/.next/static (always update)
+    if [ -d "$INSTALL_DIR/.next/static" ]; then
+        echo -e "${YELLOW}Copying .next/static to standalone...${NC}"
         mkdir -p "$INSTALL_DIR/.next/standalone/.next"
-    fi
-    if [ ! -d "$INSTALL_DIR/.next/standalone/.next/static" ]; then
         cp -r "$INSTALL_DIR/.next/static" "$INSTALL_DIR/.next/standalone/.next/static" 2>/dev/null || true
+    else
+        echo -e "${RED}Warning: .next/static directory not found!${NC}"
     fi
+else
+    echo -e "${RED}Warning: .next/standalone directory not found!${NC}"
 fi
 
 # Check if service user exists, create if not
