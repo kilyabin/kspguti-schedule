@@ -123,6 +123,13 @@ PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 echo -e "${YELLOW}Project directory: $PROJECT_DIR${NC}"
 echo -e "${YELLOW}Installation directory: $INSTALL_DIR${NC}\n"
 
+# Pull latest changes in project root (if using git)
+cd "$PROJECT_DIR"
+if [ -d ".git" ]; then
+    echo -e "${YELLOW}Pulling latest changes from git...${NC}"
+    git pull
+fi
+
 # Create installation directory
 echo -e "${YELLOW}Creating installation directory...${NC}"
 mkdir -p "$INSTALL_DIR"
