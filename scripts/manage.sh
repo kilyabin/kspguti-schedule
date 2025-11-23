@@ -70,19 +70,50 @@ case "$1" in
             exit 1
         fi
         
-        cd "$INSTALL_DIR"
+        # Get the directory where the script is located (project root)
+        SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+        PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+        
+        echo -e "${YELLOW}Project directory: $PROJECT_DIR${NC}"
+        echo -e "${YELLOW}Installation directory: $INSTALL_DIR${NC}"
         
         # Stop service
         echo -e "${YELLOW}Stopping service...${NC}"
         systemctl stop "$SERVICE_NAME"
         
-        # Pull latest changes (if using git)
+        # Pull latest changes in project root (if using git)
+        cd "$PROJECT_DIR"
         if [ -d ".git" ]; then
-            echo -e "${YELLOW}Pulling latest changes...${NC}"
+            echo -e "${YELLOW}Pulling latest changes from git...${NC}"
             git pull
         else
             echo -e "${YELLOW}Not a git repository, skipping pull${NC}"
         fi
+        
+        # Copy updated files to installation directory
+        echo -e "${YELLOW}Copying updated files to installation directory...${NC}"
+        rsync -av --exclude='node_modules' \
+                  --exclude='.next' \
+                  --exclude='.git' \
+                  --exclude='*.log' \
+                  --exclude='.env.local' \
+                  --exclude='.env.development' \
+                  --exclude='.env.development.local' \
+                  --exclude='.env.test' \
+                  --exclude='.env.test.local' \
+                  --exclude='*.md' \
+                  "$PROJECT_DIR/" "$INSTALL_DIR/"
+        
+        # Handle .env file (preserve existing if present)
+        if [ -f "$INSTALL_DIR/.env" ]; then
+            echo -e "${GREEN}Preserving existing .env file${NC}"
+        elif [ -f "$PROJECT_DIR/.env" ]; then
+            echo -e "${YELLOW}Copying .env file...${NC}"
+            cp "$PROJECT_DIR/.env" "$INSTALL_DIR/.env"
+        fi
+        
+        # Change to installation directory for build
+        cd "$INSTALL_DIR"
         
         # Install dependencies (with check)
         echo -e "${YELLOW}Checking dependencies...${NC}"
@@ -129,6 +160,22 @@ case "$1" in
         # Build
         echo -e "${YELLOW}Building application...${NC}"
         npm run build
+        
+        # Ensure public directory is accessible in standalone build
+        echo -e "${YELLOW}Setting up static files...${NC}"
+        if [ -d "$INSTALL_DIR/.next/standalone" ]; then
+            # Copy public to standalone directory if it's not there
+            if [ ! -d "$INSTALL_DIR/.next/standalone/public" ]; then
+                cp -r "$INSTALL_DIR/public" "$INSTALL_DIR/.next/standalone/public" 2>/dev/null || true
+            fi
+            # Ensure .next/static is accessible from standalone
+            if [ ! -d "$INSTALL_DIR/.next/standalone/.next" ]; then
+                mkdir -p "$INSTALL_DIR/.next/standalone/.next"
+            fi
+            if [ ! -d "$INSTALL_DIR/.next/standalone/.next/static" ]; then
+                cp -r "$INSTALL_DIR/.next/static" "$INSTALL_DIR/.next/standalone/.next/static" 2>/dev/null || true
+            fi
+        fi
         
         # Set ownership
         chown -R www-data:www-data "$INSTALL_DIR"
