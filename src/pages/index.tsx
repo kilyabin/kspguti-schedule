@@ -162,13 +162,10 @@ export default function HomePage({ groups, groupsByCourse }: HomePageProps) {
               </Button>
             </div>
             <div
-              className="relative stagger-card"
+              className="stagger-card"
               style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.08}s` } as React.CSSProperties}
             >
               <ThemeSwitcher />
-              <span className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground whitespace-nowrap sm:hidden">
-                Тема
-              </span>
             </div>
             <div
               className="stagger-card"

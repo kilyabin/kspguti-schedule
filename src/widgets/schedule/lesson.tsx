@@ -126,7 +126,10 @@ export function Lesson({ lesson, width = 350, animationDelay }: {
         {!isCancelled && ('place' in lesson && lesson.place) && (
           <div className='flex flex-col text-muted-foreground text-xs break-words mt-3 md:hidden'>
             <span className='flex items-center gap-2'><BsFillGeoAltFill /> <span className="break-words">{lesson.place.address}</span></span>
-            <span className='font-bold flex items-center gap-2'><RiGroup2Fill /> {lesson.place.classroom}</span>
+            <span className='flex items-center gap-2 mt-1'>
+              <RiGroup2Fill />
+              <Badge variant="outline" className="font-bold text-xs">{lesson.place.classroom}</Badge>
+            </span>
           </div>
         )}
       </CardContent>
@@ -135,7 +138,10 @@ export function Lesson({ lesson, width = 350, animationDelay }: {
           {('place' in lesson && lesson.place) ? (
             <div className='hidden md:flex flex-col text-muted-foreground text-xs break-words'>
               <span className='flex items-center gap-2'><BsFillGeoAltFill /> <span className="break-words">{lesson.place.address}</span></span>
-              <span className='font-bold flex items-center gap-2'><RiGroup2Fill /> {lesson.place.classroom}</span>
+              <span className='flex items-center gap-2 mt-1'>
+                <RiGroup2Fill />
+                <Badge variant="outline" className="font-bold text-xs">{lesson.place.classroom}</Badge>
+              </span>
             </div>
           ) : <span />}
           {Boolean(lesson.resources.length) && (
