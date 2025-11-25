@@ -17,10 +17,8 @@ Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support.
 - TypeScript 5.6.0 with types for each package
 - Telegram Bot API (via [node-telegram-bot-api]) for parsing failure notifications
 - Custom [js parser for teachers' photos](https://gist.github.com/VityaSchel/28f1a360ee7798511765910b39c6086c)
-- Accessability & tab navigation support
+- Accessibility & tab navigation support
 - Dark theme with automatic switching based on system settings
-
-Tools used: pnpm, eslint, react-icons. Deployed with Netlify and supported by Cloudflare.
 
 ## Known issues
 
@@ -40,14 +38,9 @@ Workaround: Locate to next week, then enter previous twice.
 ```bash
 # Install dependencies
 npm install
-# or
-pnpm install
 
 # Run development server
 npm run dev
-# or
-pnpm dev
-```
 
 ### Docker deployment
 
