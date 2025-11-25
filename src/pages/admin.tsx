@@ -113,7 +113,10 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
   }
 
   const handleUpdateSettings = async (newSettings: AppSettings) => {
-    setLoading(true)
+    // Сохраняем предыдущее состояние для отката при ошибке
+    const previousSettings = settings
+    // Оптимистичное обновление UI
+    setSettings(newSettings)
     setError(null)
 
     try {
@@ -126,14 +129,17 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
       const data = await res.json()
 
       if (res.ok && data.success) {
+        // Обновляем состояние из ответа сервера (для синхронизации)
         setSettings(data.settings)
       } else {
+        // Откатываем изменения при ошибке
+        setSettings(previousSettings)
         setError(data.error || 'Ошибка при обновлении настроек')
       }
     } catch (err) {
+      // Откатываем изменения при ошибке
+      setSettings(previousSettings)
       setError('Ошибка соединения с сервером')
-    } finally {
-      setLoading(false)
     }
   }
 

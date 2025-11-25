@@ -34,7 +34,11 @@ async function handler(
 
     try {
       saveSettings(settings)
-      res.status(200).json({ success: true, settings })
+      // Сбрасываем кеш и загружаем свежие настройки для подтверждения
+      const { clearSettingsCache } = await import('@/shared/data/settings-loader')
+      clearSettingsCache()
+      const savedSettings = loadSettings()
+      res.status(200).json({ success: true, settings: savedSettings })
     } catch (error) {
       console.error('Error saving settings:', error)
       res.status(500).json({ error: 'Failed to save settings' })
