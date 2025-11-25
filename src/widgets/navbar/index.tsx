@@ -55,10 +55,11 @@ export function NavBar({ cacheAvailableFor, groups }: {
               </li>
             </ul>
           </div>
-          <div className='flex gap-1 min-[500px]:gap-2 flex-shrink-0'>
-            <Link href={GITHUB_REPO_URL} target='_blank' rel='nofollower noreferrer'>
-              <Button variant='outline' size='icon' className="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0" tabIndex={-1}>
+          <div className='flex gap-1 min-[500px]:gap-2 flex-shrink-0 items-center flex-nowrap'>
+            <Link href={GITHUB_REPO_URL} target='_blank' rel='nofollower noreferrer' className="flex-shrink-0">
+              <Button variant='outline' size='icon' className="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex-shrink-0" tabIndex={-1}>
                 <FaGithub />
+                <span className="sr-only">GitHub</span>
               </Button>
             </Link>
             <ThemeSwitcher />
