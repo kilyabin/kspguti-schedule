@@ -5,12 +5,14 @@ export default function Document() {
     <Html lang="ru">
       <Head>
         <meta property="og:site_name" content="Расписание занятий в Колледже связи ПГУТИ" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/icon1.png" />
+        <link rel="icon" type="image/svg+xml" href="/icon0.svg" />
+        <link rel="icon" href="/favicon.ico" />
         <link rel="manifest" href="/site.webmanifest" />
-        <meta name="msapplication-TileColor" content="#da532c" />
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="msapplication-TileColor" content="#bc7b7b" />
+        <meta name="theme-color" content="#bc7b7b" />
+        <meta name="apple-mobile-web-app-title" content="Расписание КС" />
       </Head>
       <body>
         <Main />
