@@ -4,6 +4,7 @@ import { verifyPassword, setSessionCookie } from '@/shared/utils/auth'
 type ResponseData = {
   success?: boolean
   error?: string
+  retryAfter?: number
 }
 
 // Rate limiting: 5 попыток в 15 минут
