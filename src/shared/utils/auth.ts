@@ -40,7 +40,11 @@ export function verifyPassword(password: string): boolean {
   try {
     const passwordBuffer = Buffer.from(password, 'utf8')
     const adminPasswordBuffer = Buffer.from(adminPassword, 'utf8')
-    return crypto.timingSafeEqual(passwordBuffer, adminPasswordBuffer)
+    // Buffer в Node.js наследуется от Uint8Array и совместим с ArrayBufferView
+    return crypto.timingSafeEqual(
+      passwordBuffer as Uint8Array,
+      adminPasswordBuffer as Uint8Array
+    )
   } catch {
     return false
   }
