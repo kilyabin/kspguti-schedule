@@ -1,8 +1,7 @@
 import '@/shared/styles/globals.css'
 import type { AppProps } from 'next/app'
 import { ThemeProvider } from '@/shared/providers/theme-provider'
-import { LoadingContextProvider, LoadingContext } from '@/shared/context/loading-context'
-import { LoadingOverlay } from '@/shared/ui/loading-overlay'
+import { LoadingContextProvider, LoadingContext, LoadingOverlay } from '@/shared/context/loading-context'
 import Head from 'next/head'
 import React from 'react'
 

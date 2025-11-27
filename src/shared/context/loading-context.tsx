@@ -1,5 +1,7 @@
 import React from 'react'
 import { useRouter } from 'next/router'
+import { Spinner } from '@/shared/ui/spinner'
+import { cn } from '@/shared/utils'
 
 interface LoadingContextType {
   isLoading: boolean
@@ -41,6 +43,85 @@ export function LoadingContextProvider({ children }: React.PropsWithChildren) {
     <LoadingContext.Provider value={{ isLoading }}>
       {children}
     </LoadingContext.Provider>
+  )
+}
+
+const loadingMessages = [
+  'Вайбкодим…',
+  'Отменяем пары…',
+  'Объезжаем пробки…',
+  'Ищем замены…',
+  'Ждем выходных…',
+]
+
+interface LoadingOverlayProps {
+  isLoading: boolean
+}
+
+export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
+  const [currentMessage, setCurrentMessage] = React.useState<string>('')
+  const [messageOpacity, setMessageOpacity] = React.useState(0)
+
+  React.useEffect(() => {
+    if (!isLoading) {
+      setCurrentMessage('')
+      setMessageOpacity(0)
+      return
+    }
+
+    // Выбираем случайное сообщение при старте загрузки
+    const getRandomMessage = () => {
+      const randomIndex = Math.floor(Math.random() * loadingMessages.length)
+      return loadingMessages[randomIndex]
+    }
+
+    // Устанавливаем первое сообщение
+    setCurrentMessage(getRandomMessage())
+    setMessageOpacity(1)
+
+    // Меняем сообщение каждые 2 секунды
+    const interval = setInterval(() => {
+      // Fade out
+      setMessageOpacity(0)
+      
+      // После fade out меняем сообщение и fade in
+      setTimeout(() => {
+        setCurrentMessage(getRandomMessage())
+        setMessageOpacity(1)
+      }, 300) // Длительность fade анимации
+    }, 2000)
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [isLoading])
+
+  return (
+    <div
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center',
+        'bg-background/80 backdrop-blur-md',
+        'transition-opacity duration-300',
+        isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      )}
+      aria-label="Загрузка"
+      role="status"
+      aria-hidden={!isLoading}
+    >
+      {isLoading && (
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16">
+            <Spinner size="large" />
+          </div>
+          <div 
+            className="min-h-[1.5rem] text-center transition-opacity duration-300"
+            style={{ opacity: messageOpacity }}
+          >
+            {currentMessage}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

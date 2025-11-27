@@ -114,7 +114,10 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
   const settings = loadSettings()
   const group = context.params?.group
   const wkParam = context.query.wk
-  const wk = wkParam ? Number(wkParam) : undefined
+  // Валидация wk параметра: проверка на валидное число (не NaN, не Infinity)
+  const wk = wkParam && !isNaN(Number(wkParam)) && isFinite(Number(wkParam)) && Number.isInteger(Number(wkParam)) && Number(wkParam) > 0
+    ? Number(wkParam)
+    : undefined
   
   if (group && Object.hasOwn(groups, group) && group in groups) {
     let scheduleResult: ScheduleResult
