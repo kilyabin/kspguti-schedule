@@ -176,7 +176,11 @@ case "$1" in
         
         # Build
         echo -e "${YELLOW}Building application...${NC}"
-        npm run build
+        if ! npm run build; then
+            echo -e "${RED}Build failed! Please check the error messages above.${NC}"
+            echo -e "${RED}The .next/standalone directory will not be created if the build fails.${NC}"
+            exit 1
+        fi
         
         # Ensure public directory and static files are accessible in standalone build
         echo -e "${YELLOW}Setting up static files...${NC}"
@@ -195,7 +199,10 @@ case "$1" in
                 echo -e "${RED}Warning: .next/static directory not found!${NC}"
             fi
         else
-            echo -e "${RED}Warning: .next/standalone directory not found!${NC}"
+            echo -e "${RED}Error: .next/standalone directory not found!${NC}"
+            echo -e "${RED}This usually means the build failed or output: 'standalone' is not configured correctly.${NC}"
+            echo -e "${RED}Please check next.config.js and ensure the build completed successfully.${NC}"
+            exit 1
         fi
         
         # Set ownership
