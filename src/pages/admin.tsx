@@ -15,6 +15,7 @@ import {
 import { loadGroups, GroupsData } from '@/shared/data/groups-loader'
 import { loadSettings, AppSettings } from '@/shared/data/settings-loader'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shadcn/ui/select'
+import { ToastContainer, Toast } from '@/shared/ui/toast'
 import Head from 'next/head'
 
 type AdminPageProps = {
@@ -34,6 +35,16 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
   const [showEditDialog, setShowEditDialog] = React.useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
   const [groupToDelete, setGroupToDelete] = React.useState<string | null>(null)
+  const [toasts, setToasts] = React.useState<Toast[]>([])
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id))
+  }
 
   // Форма добавления/редактирования
   const [formData, setFormData] = React.useState({
@@ -131,15 +142,20 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
       if (res.ok && data.success) {
         // Обновляем состояние из ответа сервера (для синхронизации)
         setSettings(data.settings)
+        showToast('Настройки успешно обновлены', 'success')
       } else {
         // Откатываем изменения при ошибке
         setSettings(previousSettings)
-        setError(data.error || 'Ошибка при обновлении настроек')
+        const errorMessage = data.error || 'Ошибка при обновлении настроек'
+        setError(errorMessage)
+        showToast(errorMessage, 'error')
       }
     } catch (err) {
       // Откатываем изменения при ошибке
       setSettings(previousSettings)
-      setError('Ошибка соединения с сервером')
+      const errorMessage = 'Ошибка соединения с сервером'
+      setError(errorMessage)
+      showToast(errorMessage, 'error')
     }
   }
 
@@ -166,11 +182,16 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
         setGroups(data.groups)
         setShowAddDialog(false)
         setFormData({ id: '', parseId: '', name: '', course: '1' })
+        showToast('Группа успешно добавлена', 'success')
       } else {
-        setError(data.error || 'Ошибка при добавлении группы')
+        const errorMessage = data.error || 'Ошибка при добавлении группы'
+        setError(errorMessage)
+        showToast(errorMessage, 'error')
       }
     } catch (err) {
-      setError('Ошибка соединения с сервером')
+      const errorMessage = 'Ошибка соединения с сервером'
+      setError(errorMessage)
+      showToast(errorMessage, 'error')
     } finally {
       setLoading(false)
     }
@@ -201,11 +222,16 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
         setShowEditDialog(false)
         setEditingGroup(null)
         setFormData({ id: '', parseId: '', name: '', course: '1' })
+        showToast('Группа успешно обновлена', 'success')
       } else {
-        setError(data.error || 'Ошибка при редактировании группы')
+        const errorMessage = data.error || 'Ошибка при редактировании группы'
+        setError(errorMessage)
+        showToast(errorMessage, 'error')
       }
     } catch (err) {
-      setError('Ошибка соединения с сервером')
+      const errorMessage = 'Ошибка соединения с сервером'
+      setError(errorMessage)
+      showToast(errorMessage, 'error')
     } finally {
       setLoading(false)
     }
@@ -228,11 +254,16 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
         setGroups(data.groups)
         setShowDeleteDialog(false)
         setGroupToDelete(null)
+        showToast('Группа успешно удалена', 'success')
       } else {
-        setError(data.error || 'Ошибка при удалении группы')
+        const errorMessage = data.error || 'Ошибка при удалении группы'
+        setError(errorMessage)
+        showToast(errorMessage, 'error')
       }
     } catch (err) {
-      setError('Ошибка соединения с сервером')
+      const errorMessage = 'Ошибка соединения с сервером'
+      setError(errorMessage)
+      showToast(errorMessage, 'error')
     } finally {
       setLoading(false)
     }
@@ -586,6 +617,9 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Toast уведомления */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </>
   )
 }

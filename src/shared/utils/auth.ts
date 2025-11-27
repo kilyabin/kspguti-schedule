@@ -2,11 +2,28 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import crypto from 'crypto'
 
 const SESSION_COOKIE_NAME = 'admin_session'
-const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || 'change-me-in-production'
+const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET
 const SESSION_DURATION = 1000 * 60 * 60 * 24 // 24 часа
+
+// Получаем секрет сессии с учетом окружения
+function getSessionSecret(): string {
+  if (SESSION_SECRET) {
+    return SESSION_SECRET
+  }
+  
+  // В production требуем явную установку
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('ADMIN_SESSION_SECRET must be set in production environment')
+  }
+  
+  // В development используем дефолтный секрет с предупреждением
+  console.warn('ADMIN_SESSION_SECRET is not set. Using default secret for development. This is not secure for production!')
+  return 'change-me-in-production'
+}
 
 /**
  * Проверяет пароль администратора
+ * Использует timing-safe сравнение для защиты от timing attacks
  */
 export function verifyPassword(password: string): boolean {
   const adminPassword = process.env.ADMIN_PASSWORD
@@ -14,17 +31,31 @@ export function verifyPassword(password: string): boolean {
     console.error('ADMIN_PASSWORD is not set')
     return false
   }
-  return password === adminPassword
+  
+  // Используем timing-safe сравнение для защиты от timing attacks
+  if (password.length !== adminPassword.length) {
+    return false
+  }
+  
+  try {
+    const passwordBuffer = Buffer.from(password, 'utf8')
+    const adminPasswordBuffer = Buffer.from(adminPassword, 'utf8')
+    return crypto.timingSafeEqual(passwordBuffer, adminPasswordBuffer)
+  } catch {
+    return false
+  }
 }
 
 /**
  * Создает сессионный токен
  */
 function createSessionToken(): string {
+  const secret = getSessionSecret()
+  
   const randomBytes = crypto.randomBytes(32).toString('hex')
   const timestamp = Date.now().toString()
   const data = `${randomBytes}:${timestamp}`
-  const hash = crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('hex')
+  const hash = crypto.createHmac('sha256', secret).update(data).digest('hex')
   return `${data}:${hash}`
 }
 
@@ -33,12 +64,14 @@ function createSessionToken(): string {
  */
 function verifySessionToken(token: string): boolean {
   try {
+    const secret = getSessionSecret()
+    
     const parts = token.split(':')
     if (parts.length !== 3) return false
     
     const [randomBytes, timestamp, hash] = parts
     const data = `${randomBytes}:${timestamp}`
-    const expectedHash = crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('hex')
+    const expectedHash = crypto.createHmac('sha256', secret).update(data).digest('hex')
     
     if (hash !== expectedHash) return false
     
@@ -70,8 +103,14 @@ export function checkAuth(req: NextApiRequest): boolean {
   const cookieHeader = req.headers.cookie
   if (!cookieHeader) return false
   
+  // Улучшенный парсинг cookies для корректной обработки значений с '='
   const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
-    const [key, value] = cookie.trim().split('=')
+    const trimmed = cookie.trim()
+    const equalIndex = trimmed.indexOf('=')
+    if (equalIndex === -1) return acc
+    
+    const key = trimmed.substring(0, equalIndex)
+    const value = trimmed.substring(equalIndex + 1)
     acc[key] = value
     return acc
   }, {} as Record<string, string>)
