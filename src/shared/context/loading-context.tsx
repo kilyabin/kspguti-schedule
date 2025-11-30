@@ -148,8 +148,9 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
         'fixed inset-0 z-50 flex items-center justify-center',
         'bg-background/80 backdrop-blur-md',
         'transition-opacity duration-300',
-        isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        isLoading ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none invisible'
       )}
+      style={isLoading ? { touchAction: 'none' } : undefined}
       aria-label="Загрузка"
       role="status"
       aria-hidden={!isLoading}
@@ -169,7 +170,7 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
           </div>
           {showError && (
             <div 
-              className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-background/10 backdrop-blur-sm border border-border/30 rounded-lg p-4 max-w-md mx-4 transition-all duration-500 ease-out"
+              className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black/70 dark:bg-black/80 backdrop-blur-sm border border-border/30 rounded-lg p-4 w-[calc(100%-2rem)] sm:max-w-md sm:w-auto transition-all duration-500 ease-out"
               style={{ 
                 opacity: errorOpacity,
                 transform: `translateX(-50%) translateY(${errorOpacity === 1 ? '0' : '100px'})`
