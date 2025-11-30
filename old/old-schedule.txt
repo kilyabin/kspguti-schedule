@@ -62,3 +62,4 @@ export async function parseSchedule(groupID: number, groupName: string) {
     throw new Error('Error while fetching lk.ks.psuti.ru')
   }
 }
+

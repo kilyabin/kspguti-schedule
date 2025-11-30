@@ -1,7 +1,7 @@
 import { Schedule } from '@/widgets/schedule'
 import { Day } from '@/shared/model/day'
 import { GetServerSidePropsContext, GetServerSidePropsResult } from 'next'
-import { getSchedule, ScheduleResult } from '@/app/agregator/schedule'
+import { getSchedule, ScheduleResult, ScheduleTimeoutError } from '@/app/agregator/schedule'
 import { NextSerialized, nextDeserialized, nextSerialized } from '@/app/utils/date-serializer'
 import { NavBar } from '@/widgets/navbar'
 import { LastUpdateAt } from '@/entities/last-update-at'
@@ -149,9 +149,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
           cleanupCache()
         }
       } catch(e) {
+        // При таймауте или любой другой ошибке используем кэш, если он доступен
         if (cachedSchedule?.lastFetched) {
           scheduleResult = cachedSchedule.results
           parsedAt = cachedSchedule.lastFetched
+          // Логируем использование кэша при таймауте
+          if (e instanceof ScheduleTimeoutError) {
+            console.warn(`Schedule fetch timeout for group ${group}, using cached data from ${cachedSchedule.lastFetched.toISOString()}`)
+          }
         } else {
           throw e
         }

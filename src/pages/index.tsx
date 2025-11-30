@@ -57,7 +57,7 @@ export default function HomePage({ groups, groupsByCourse }: HomePageProps) {
     <>
       <Head>
         <title>Расписание занятий — Колледж Связи ПГУТИ</title>
-        <meta name="description" content="Расписание занятий для всех групп Колледжа Связи ПГУТИ. Выберите группу для просмотра расписания." />
+        <meta name="description" content="Расписание занятий для всех групп Колледжа Связи ПГУТИ" />
       </Head>
       <div className="min-h-screen p-4 md:p-8">
         <div className="max-w-4xl mx-auto space-y-4">

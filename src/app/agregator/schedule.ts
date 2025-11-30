@@ -11,6 +11,13 @@ export type ScheduleResult = {
   availableWeeks?: WeekInfo[]
 }
 
+export class ScheduleTimeoutError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ScheduleTimeoutError'
+  }
+}
+
 export async function getSchedule(groupID: number, groupName: string, wk?: number, parseWeekNavigation: boolean = true): Promise<ScheduleResult> {
   // Валидация параметров
   if (!Number.isInteger(groupID) || groupID <= 0) {
@@ -23,9 +30,9 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
   
   const url = `${PROXY_URL}/?mn=2&obj=${groupID}${wk ? `&wk=${wk}` : ''}`
   
-  // Добавляем таймаут 30 секунд для fetch запроса
+  // Добавляем таймаут 8 секунд для fetch запроса
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 секунд
+  const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 секунд
   
   try {
     const page = await fetch(url, { signal: controller.signal })
@@ -65,7 +72,7 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
   } catch (error) {
     clearTimeout(timeoutId)
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(`Request timeout while fetching ${PROXY_URL}`)
+      throw new ScheduleTimeoutError(`Request timeout while fetching ${PROXY_URL}`)
     }
     throw error
   }

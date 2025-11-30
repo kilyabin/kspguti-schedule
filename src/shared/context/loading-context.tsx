@@ -61,11 +61,15 @@ interface LoadingOverlayProps {
 export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
   const [currentMessage, setCurrentMessage] = React.useState<string>('')
   const [messageOpacity, setMessageOpacity] = React.useState(0)
+  const [showError, setShowError] = React.useState(false)
+  const [errorOpacity, setErrorOpacity] = React.useState(0)
 
   React.useEffect(() => {
     if (!isLoading) {
       setCurrentMessage('')
       setMessageOpacity(0)
+      setShowError(false)
+      setErrorOpacity(0)
       return
     }
 
@@ -78,6 +82,15 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
     // Устанавливаем первое сообщение
     setCurrentMessage(getRandomMessage())
     setMessageOpacity(1)
+
+    // Таймер для показа сообщения об ошибке после 5 секунд
+    const errorTimeout = setTimeout(() => {
+      setShowError(true)
+      // Плавное появление с небольшой задержкой для анимации
+      setTimeout(() => {
+        setErrorOpacity(1)
+      }, 50)
+    }, 5000)
 
     // Меняем сообщение каждые 2 секунды
     const interval = setInterval(() => {
@@ -93,6 +106,7 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
 
     return () => {
       clearInterval(interval)
+      clearTimeout(errorTimeout)
     }
   }, [isLoading])
 
@@ -109,17 +123,32 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
       aria-hidden={!isLoading}
     >
       {isLoading && (
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16">
-            <Spinner size="large" />
+        <>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16">
+              <Spinner size="large" />
+            </div>
+            <div 
+              className="min-h-[1.5rem] text-center transition-opacity duration-300"
+              style={{ opacity: messageOpacity }}
+            >
+              {currentMessage}
+            </div>
           </div>
-          <div 
-            className="min-h-[1.5rem] text-center transition-opacity duration-300"
-            style={{ opacity: messageOpacity }}
-          >
-            {currentMessage}
-          </div>
-        </div>
+          {showError && (
+            <div 
+              className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-background/10 backdrop-blur-sm border border-border/30 rounded-lg p-4 max-w-md mx-4 transition-all duration-500 ease-out"
+              style={{ 
+                opacity: errorOpacity,
+                transform: `translateX(-50%) translateY(${errorOpacity === 1 ? '0' : '100px'})`
+              }}
+            >
+              <p className="text-sm text-foreground text-center">
+                ⚠️ Не удается получить актуальное расписание с официального сайта. Возможно, сервер временно недоступен. Будут показаны данные из кэша. Попробуйте обновить страницу позже.
+              </p>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
