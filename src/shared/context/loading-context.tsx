@@ -52,7 +52,15 @@ const loadingMessages = [
   'Объезжаем пробки…',
   'Ищем замены…',
   'Ждем выходных…',
+  'Прописываем сетевые настройки...',
+  'Настраиваем антенны...',
+  'Обновляем кэш...',
+  'Готовим кофе...',
+  'Подкручиваем позитив...',
 ]
+
+// Размер истории последних сообщений для избежания повторений
+const MAX_HISTORY_SIZE = Math.min(3, Math.floor(loadingMessages.length / 2))
 
 interface LoadingOverlayProps {
   isLoading: boolean
@@ -63,6 +71,8 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
   const [messageOpacity, setMessageOpacity] = React.useState(0)
   const [showError, setShowError] = React.useState(false)
   const [errorOpacity, setErrorOpacity] = React.useState(0)
+  // Храним историю последних показанных сообщений для избежания повторений
+  const messageHistoryRef = React.useRef<string[]>([])
 
   React.useEffect(() => {
     if (!isLoading) {
@@ -70,17 +80,31 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
       setMessageOpacity(0)
       setShowError(false)
       setErrorOpacity(0)
+      messageHistoryRef.current = []
       return
     }
 
-    // Выбираем случайное сообщение при старте загрузки
-    const getRandomMessage = () => {
-      const randomIndex = Math.floor(Math.random() * loadingMessages.length)
-      return loadingMessages[randomIndex]
+    // Выбираем случайное сообщение, исключая последние показанные
+    const getRandomMessage = (excludeMessages: string[] = []) => {
+      const availableMessages = loadingMessages.filter(
+        msg => !excludeMessages.includes(msg)
+      )
+      
+      // Если все сообщения были недавно показаны, сбрасываем историю
+      if (availableMessages.length === 0) {
+        messageHistoryRef.current = []
+        const randomIndex = Math.floor(Math.random() * loadingMessages.length)
+        return loadingMessages[randomIndex]
+      }
+      
+      const randomIndex = Math.floor(Math.random() * availableMessages.length)
+      return availableMessages[randomIndex]
     }
 
     // Устанавливаем первое сообщение
-    setCurrentMessage(getRandomMessage())
+    const firstMessage = getRandomMessage()
+    setCurrentMessage(firstMessage)
+    messageHistoryRef.current = [firstMessage]
     setMessageOpacity(1)
 
     // Таймер для показа сообщения об ошибке после 5 секунд
@@ -99,7 +123,15 @@ export function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
       
       // После fade out меняем сообщение и fade in
       setTimeout(() => {
-        setCurrentMessage(getRandomMessage())
+        const newMessage = getRandomMessage(messageHistoryRef.current)
+        setCurrentMessage(newMessage)
+        
+        // Обновляем историю: добавляем новое сообщение и ограничиваем размер истории
+        messageHistoryRef.current = [
+          ...messageHistoryRef.current.slice(-(MAX_HISTORY_SIZE - 1)),
+          newMessage
+        ]
+        
         setMessageOpacity(1)
       }, 300) // Длительность fade анимации
     }, 2000)

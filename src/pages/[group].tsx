@@ -13,26 +13,32 @@ import React from 'react'
 import { getDayOfWeek } from '@/shared/utils'
 import Head from 'next/head'
 import { WeekInfo } from '@/app/parser/schedule'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shadcn/ui/card'
+import { AlertCircle } from 'lucide-react'
 
 type PageProps = {
-  schedule: Day[]
+  schedule?: Day[]
   group: {
     id: string
     name: string
   }
-  parsedAt: Date
+  parsedAt?: Date
   cacheAvailableFor: string[]
   groups: GroupsData
-  currentWk: number | null
-  availableWeeks: WeekInfo[] | null
+  currentWk?: number | null
+  availableWeeks?: WeekInfo[] | null
   settings: AppSettings
+  error?: {
+    message: string
+    isTimeout: boolean
+  }
 }
 
 export default function HomePage(props: NextSerialized<PageProps>) {
-  const { schedule, group, cacheAvailableFor, parsedAt, groups, currentWk, availableWeeks, settings } = nextDeserialized<PageProps>(props)
+  const { schedule, group, cacheAvailableFor, parsedAt, groups, currentWk, availableWeeks, settings, error } = nextDeserialized<PageProps>(props)
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || error) return
 
     // Используем 'auto' для нормальной работы обновления страницы
     if ('scrollRestoration' in history) {
@@ -62,26 +68,49 @@ export default function HomePage(props: NextSerialized<PageProps>) {
     return () => {
       clearInterval(interval)
     }
-  }, [schedule])
+  }, [schedule, error])
 
   return (
     <>
       <Head>
-        <title>{`Группа ${group.name} — Расписание занятий в Колледже Связи`}</title>
+        <title>{error ? `Ошибка — Расписание группы ${group.name}` : `Группа ${group.name} — Расписание занятий в Колледже Связи`}</title>
         <link rel="canonical" href={`${SITE_URL}/${group.id}`} />
-        <meta name="description" content={`Расписание занятий группы ${group.name} на неделю в Колледже Связи ПГУТИ. Расписание пар, материалы для подготовки и изменения в расписании.`} />
-        <meta property="og:title" content={`Группа ${group.name} — Расписание занятий в Колледже Связи`} />
-        <meta property="og:description" content={`Расписание занятий группы ${group.name} на неделю в Колледже Связи ПГУТИ. Расписание пар, материалы для подготовки и изменения в расписании.`} />
+        <meta name="description" content={error ? `Не удалось загрузить расписание группы ${group.name}` : `Расписание занятий группы ${group.name} на неделю в Колледже Связи ПГУТИ. Расписание пар, материалы для подготовки и изменения в расписании.`} />
+        <meta property="og:title" content={error ? `Ошибка — Расписание группы ${group.name}` : `Группа ${group.name} — Расписание занятий в Колледже Связи`} />
+        <meta property="og:description" content={error ? `Не удалось загрузить расписание группы ${group.name}` : `Расписание занятий группы ${group.name} на неделю в Колледже Связи ПГУТИ. Расписание пар, материалы для подготовки и изменения в расписании.`} />
       </Head>
       <NavBar cacheAvailableFor={cacheAvailableFor} groups={groups} />
-      <LastUpdateAt date={parsedAt} />
-      <Schedule days={schedule} currentWk={currentWk} availableWeeks={availableWeeks} weekNavigationEnabled={settings.weekNavigationEnabled} />
+      {error ? (
+        <div className="container mx-auto px-4 py-8 max-w-2xl">
+          <Card className="stagger-card">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+                <CardTitle>Не удалось загрузить расписание</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-base">
+                {error.isTimeout 
+                  ? 'Превышено время ожидания ответа от сервера. Пожалуйста, попробуйте обновить страницу через несколько минут.'
+                  : 'Произошла ошибка при загрузке расписания. Пожалуйста, попробуйте обновить страницу позже.'}
+              </CardDescription>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <>
+          {parsedAt && <LastUpdateAt date={parsedAt} />}
+          {schedule && <Schedule days={schedule} currentWk={currentWk ?? null} availableWeeks={availableWeeks ?? null} weekNavigationEnabled={settings.weekNavigationEnabled} />}
+        </>
+      )}
     </>
   )
 }
 
 const cachedSchedules = new Map<string, { lastFetched: Date, results: ScheduleResult }>()
-const maxCacheDurationInMS = 1000 * 60 * 60
+const maxCacheDurationInMS = 1000 * 60 * 15 // 15 минут для нормального использования кэша
+const fallbackCacheDurationInMS = 1000 * 60 * 60 * 24 // 24 часа для fallback кэша при ошибках парсинга
 const maxCacheSize = 50 // Максимальное количество записей в кэше (только текущие недели)
 
 // Очистка старых записей из кэша
@@ -89,9 +118,9 @@ function cleanupCache() {
   const now = Date.now()
   const entriesToDelete: string[] = []
   
-  // Находим устаревшие записи
+  // Находим устаревшие записи (используем fallback TTL для сохранения кэша при ошибках)
   for (const [key, value] of cachedSchedules.entries()) {
-    if (now - value.lastFetched.getTime() >= maxCacheDurationInMS) {
+    if (now - value.lastFetched.getTime() >= fallbackCacheDurationInMS) {
       entriesToDelete.push(key)
     }
   }
@@ -149,16 +178,47 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
           cleanupCache()
         }
       } catch(e) {
-        // При таймауте или любой другой ошибке используем кэш, если он доступен
-        if (cachedSchedule?.lastFetched) {
+        // При таймауте или любой другой ошибке используем кэш, если он доступен (fallback кэш)
+        // Используем кэш независимо от возраста при ошибке парсинга
+        if (cachedSchedule) {
           scheduleResult = cachedSchedule.results
           parsedAt = cachedSchedule.lastFetched
-          // Логируем использование кэша при таймауте
+          // Логируем использование fallback кэша с указанием возраста
+          const cacheAge = Date.now() - cachedSchedule.lastFetched.getTime()
+          const cacheAgeMinutes = Math.floor(cacheAge / (1000 * 60))
           if (e instanceof ScheduleTimeoutError) {
-            console.warn(`Schedule fetch timeout for group ${group}, using cached data from ${cachedSchedule.lastFetched.toISOString()}`)
+            console.warn(`Schedule fetch timeout for group ${group}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAgeMinutes} minutes old)`)
+          } else {
+            console.warn(`Schedule fetch error for group ${group}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAgeMinutes} minutes old)`)
           }
         } else {
-          throw e
+          // Если кэша нет, возвращаем страницу с ошибкой вместо throw
+          const isTimeout = e instanceof ScheduleTimeoutError
+          const errorMessage = isTimeout 
+            ? 'Превышено время ожидания ответа от сервера'
+            : 'Произошла ошибка при загрузке расписания'
+          
+          console.error(`Schedule fetch failed for group ${group}, no cache available:`, e)
+          
+          const cacheAvailableFor = Array.from(cachedSchedules.entries())
+            .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
+            .map(([k]) => k.split('_')[0])
+          
+          return {
+            props: nextSerialized({
+              group: {
+                id: group,
+                name: groups[group].name
+              },
+              cacheAvailableFor,
+              groups,
+              settings,
+              error: {
+                message: errorMessage,
+                isTimeout
+              }
+            })
+          }
         }
       }
     }
