@@ -187,7 +187,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
             message: 'Debug: принудительная ошибка',
             isTimeout: false
           }
-        })
+        }) as NextSerialized<PageProps>
       }
     }
     
@@ -210,7 +210,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
             message: 'Debug: принудительный таймаут',
             isTimeout: true
           }
-        })
+        }) as NextSerialized<PageProps>
       }
     }
     
@@ -292,7 +292,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
                 message: errorMessage,
                 isTimeout
               }
-            })
+            }) as NextSerialized<PageProps>
           }
         }
       }
@@ -353,7 +353,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
         isFromCache: isFromCache ?? false,
         cacheAge: cacheAge ?? null,
         cacheInfo: cacheInfo ?? null
-      })
+      }) as NextSerialized<PageProps>
     }
   } else {
     return {
