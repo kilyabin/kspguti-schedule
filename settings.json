@@ -1,7 +1,7 @@
 {
   "weekNavigationEnabled": false,
   "debug": {
-    "forceCache": true,
+    "forceCache": false,
     "forceEmpty": false,
     "forceError": false,
     "forceTimeout": false,
