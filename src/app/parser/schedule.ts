@@ -239,9 +239,11 @@ const parseLesson = (row: Element): Lesson | null => {
 
   try {
     const cells = Array.from(row.querySelectorAll(':scope > td'))
-    if (!cells[3] || cells[3].textContent?.trim() === 'Свободное время') return null
-
+    
     lesson.isChange = cells.every(td => td.getAttribute('bgcolor') === 'ffffbb')
+    
+    // Пропускаем урок только если это НЕ замена И в ячейке "Свободное время"
+    if (!cells[3] || (!lesson.isChange && cells[3].textContent?.trim() === 'Свободное время')) return null
 
     if (!cells[1] || !cells[1].childNodes[0]) {
       return null
@@ -261,38 +263,138 @@ const parseLesson = (row: Element): Lesson | null => {
     }
 
     try {
-      if (!cells[3].childNodes[0]) {
-        throw new Error('Subject node not found')
-      }
-      lesson.subject = cells[3].childNodes[0].textContent!.trim()
-
-      const teacherCell = cells[3].childNodes[2]
-      if (teacherCell) {
-        lesson.teacher = teacherCell.textContent!.trim()
+      const disciplineCell = cells[3]
+      if (!disciplineCell) {
+        throw new Error('Discipline cell not found')
       }
 
-      const placeCell = cells[3].childNodes[3]
-
-      if (placeCell && placeCell.childNodes.length > 0) {
-        const addressNode = placeCell.childNodes[1]
-        const classroomNode = placeCell.childNodes[3]
+      const cellText = disciplineCell.textContent || ''
+      const cellHTML = disciplineCell.innerHTML || ''
+      
+      // Проверяем, является ли это заменой "Свободное время" на пару
+      const isFreeTimeReplacement = lesson.isChange && 
+        (cellText.includes('Свободное время') && cellText.includes('Замена') && cellText.includes('на:'))
+      
+      if (isFreeTimeReplacement) {
+        // Для замены "свободное время" на пару нужно парсить данные после "на:"
+        // Структура: "Замена Свободное время на:</a><br> название <br> преподаватель <font> адрес <br> кабинет </font>
         
-        if (addressNode && classroomNode) {
-          const address = addressNode.textContent?.trim()
-          const classroomText = classroomNode.textContent?.trim()
-          const classroomMatch = classroomText?.match(/^Кабинет: ([^ ]+)(-2)?$/)
+        // Используем HTML парсинг для извлечения данных после "на:"
+        const afterOnIndex = cellHTML.indexOf('на:')
+        if (afterOnIndex !== -1) {
+          const afterOn = cellHTML.substring(afterOnIndex + 3) // +3 для "на:"
           
-          if (address && classroomMatch) {
-            lesson.place = {
-              address,
-              classroom: classroomMatch[1]
+          // Пропускаем первый <br> (он идет сразу после "на:")
+          const firstBrIndex = afterOn.indexOf('<br')
+          if (firstBrIndex !== -1) {
+            // Находим конец первого <br> тега
+            const firstBrEnd = afterOn.indexOf('>', firstBrIndex) + 1
+            const afterFirstBr = afterOn.substring(firstBrEnd)
+            
+            // Извлекаем название предмета (текст до следующего <br>)
+            const secondBrIndex = afterFirstBr.indexOf('<br')
+            if (secondBrIndex !== -1) {
+              const subjectHTML = afterFirstBr.substring(0, secondBrIndex)
+              lesson.subject = subjectHTML.replace(/<[^>]+>/g, '').trim()
+              
+              // Извлекаем преподавателя (текст между вторым <br> и <font> или следующим <br>)
+              const secondBrEnd = afterFirstBr.indexOf('>', secondBrIndex) + 1
+              const afterSecondBr = afterFirstBr.substring(secondBrEnd)
+              
+              const fontIndex = afterSecondBr.indexOf('<font')
+              if (fontIndex !== -1) {
+                const teacherHTML = afterSecondBr.substring(0, fontIndex)
+                lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
+              } else {
+                // Если нет <font>, преподаватель может быть до следующего <br> или до конца
+                const thirdBrIndex = afterSecondBr.indexOf('<br')
+                if (thirdBrIndex !== -1) {
+                  const teacherHTML = afterSecondBr.substring(0, thirdBrIndex)
+                  lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
+                } else {
+                  lesson.teacher = afterSecondBr.replace(/<[^>]+>/g, '').trim()
+                }
+              }
+            } else {
+              // Если нет второго <br>, название предмета может быть до <font> или до конца
+              const fontIndex = afterFirstBr.indexOf('<font')
+              if (fontIndex !== -1) {
+                const subjectHTML = afterFirstBr.substring(0, fontIndex)
+                lesson.subject = subjectHTML.replace(/<[^>]+>/g, '').trim()
+              } else {
+                lesson.subject = afterFirstBr.replace(/<[^>]+>/g, '').trim()
+              }
+            }
+          }
+          
+          // Ищем адрес и кабинет внутри <font>
+          const fontMatch = afterOn.match(/<font[^>]*>([\s\S]*?)<\/font>/i)
+          if (fontMatch) {
+            const fontContent = fontMatch[1]
+            // Ищем паттерн: <br> адрес <br> Кабинет: номер
+            // Сначала убираем все теги и разбиваем по <br>
+            const cleanContent = fontContent.replace(/<[^>]+>/g, '|').split('|').filter(p => p.trim())
+            // Ищем адрес (первая непустая часть) и кабинет (часть с "Кабинет:")
+            for (let i = 0; i < cleanContent.length; i++) {
+              const part = cleanContent[i].trim()
+              if (part && !part.includes('Кабинет:')) {
+                const nextPart = cleanContent[i + 1]?.trim() || ''
+                const classroomMatch = nextPart.match(/Кабинет:\s*([^\s]+)/i)
+                if (classroomMatch) {
+                  lesson.place = {
+                    address: part,
+                    classroom: classroomMatch[1]
+                  }
+                  break
+                }
+              }
+            }
+          } else {
+            // Если нет <font>, ищем адрес и кабинет напрямую в тексте после "на:"
+            const addressMatch = afterOn.match(/([^<]+?)(?:<br[^>]*>|\s+)Кабинет:\s*([^<\s]+)/i)
+            if (addressMatch) {
+              lesson.place = {
+                address: addressMatch[1].replace(/<[^>]+>/g, '').trim(),
+                classroom: addressMatch[2].trim()
+              }
+            }
+          }
+        }
+      } else {
+        // Обычный парсинг для нормальных пар
+        if (!disciplineCell.childNodes[0]) {
+          throw new Error('Subject node not found')
+        }
+        lesson.subject = disciplineCell.childNodes[0].textContent!.trim()
+
+        const teacherCell = disciplineCell.childNodes[2]
+        if (teacherCell) {
+          lesson.teacher = teacherCell.textContent!.trim()
+        }
+
+        const placeCell = disciplineCell.childNodes[3]
+
+        if (placeCell && placeCell.childNodes.length > 0) {
+          const addressNode = placeCell.childNodes[1]
+          const classroomNode = placeCell.childNodes[3]
+          
+          if (addressNode && classroomNode) {
+            const address = addressNode.textContent?.trim()
+            const classroomText = classroomNode.textContent?.trim()
+            const classroomMatch = classroomText?.match(/^Кабинет: ([^ ]+)(-2)?$/)
+            
+            if (address && classroomMatch) {
+              lesson.place = {
+                address,
+                classroom: classroomMatch[1]
+              }
             }
           }
         }
       }
     } catch(e) {
-      console.error('Error while parsing discipline', e, cells[3].textContent?.trim())
-      lesson.fallbackDiscipline = cells[3].textContent?.trim()
+      console.error('Error while parsing discipline', e, cells[3]?.textContent?.trim())
+      lesson.fallbackDiscipline = cells[3]?.textContent?.trim()
     }
 
     if (cells[4]) {
