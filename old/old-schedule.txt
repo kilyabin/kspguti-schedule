@@ -63,3 +63,4 @@ export async function parseSchedule(groupID: number, groupName: string) {
   }
 }
 
+

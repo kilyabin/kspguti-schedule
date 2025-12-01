@@ -32,10 +32,16 @@ type PageProps = {
     message: string
     isTimeout: boolean
   }
+  isFromCache?: boolean
+  cacheAge?: number // возраст кэша в минутах
+  cacheInfo?: {
+    size: number
+    entries: number
+  }
 }
 
 export default function HomePage(props: NextSerialized<PageProps>) {
-  const { schedule, group, cacheAvailableFor, parsedAt, groups, currentWk, availableWeeks, settings, error } = nextDeserialized<PageProps>(props)
+  const { schedule, group, cacheAvailableFor, parsedAt, groups, currentWk, availableWeeks, settings, error, isFromCache, cacheAge, cacheInfo } = nextDeserialized<PageProps>(props)
 
   React.useEffect(() => {
     if (typeof window === 'undefined' || error) return
@@ -101,7 +107,17 @@ export default function HomePage(props: NextSerialized<PageProps>) {
       ) : (
         <>
           {parsedAt && <LastUpdateAt date={parsedAt} />}
-          {schedule && <Schedule days={schedule} currentWk={currentWk ?? null} availableWeeks={availableWeeks ?? null} weekNavigationEnabled={settings.weekNavigationEnabled} />}
+          {schedule && (
+            <Schedule 
+              days={schedule} 
+              currentWk={currentWk ?? null} 
+              availableWeeks={availableWeeks ?? null} 
+              weekNavigationEnabled={settings.weekNavigationEnabled}
+              isFromCache={isFromCache}
+              cacheAge={cacheAge}
+              cacheInfo={cacheInfo}
+            />
+          )}
         </>
       )}
     </>
@@ -149,8 +165,59 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
     : undefined
   
   if (group && Object.hasOwn(groups, group) && group in groups) {
+    // Проверяем debug опции
+    const debug = settings.debug || {}
+    
+    // Debug: принудительно показать ошибку
+    if (debug.forceError) {
+      const cacheAvailableFor = Array.from(cachedSchedules.entries())
+        .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
+        .map(([k]) => k.split('_')[0])
+      
+      return {
+        props: nextSerialized({
+          group: {
+            id: group,
+            name: groups[group].name
+          },
+          cacheAvailableFor,
+          groups,
+          settings,
+          error: {
+            message: 'Debug: принудительная ошибка',
+            isTimeout: false
+          }
+        })
+      }
+    }
+    
+    // Debug: принудительно симулировать таймаут
+    if (debug.forceTimeout) {
+      const cacheAvailableFor = Array.from(cachedSchedules.entries())
+        .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
+        .map(([k]) => k.split('_')[0])
+      
+      return {
+        props: nextSerialized({
+          group: {
+            id: group,
+            name: groups[group].name
+          },
+          cacheAvailableFor,
+          groups,
+          settings,
+          error: {
+            message: 'Debug: принудительный таймаут',
+            isTimeout: true
+          }
+        })
+      }
+    }
+    
     let scheduleResult: ScheduleResult
     let parsedAt
+    let isFromCache = false
+    let cacheAge: number | undefined
 
     // Очищаем старые записи из кэша перед использованием
     cleanupCache()
@@ -161,7 +228,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
     const cacheKey = group // Ключ кэша - только группа (текущая неделя)
     const cachedSchedule = useCache ? cachedSchedules.get(cacheKey) : undefined
     
-    if (cachedSchedule?.lastFetched && Date.now() - cachedSchedule.lastFetched.getTime() < maxCacheDurationInMS) {
+    // Debug: принудительно использовать кэш
+    if (debug.forceCache && cachedSchedule) {
+      scheduleResult = cachedSchedule.results
+      parsedAt = cachedSchedule.lastFetched
+      isFromCache = true
+      const cacheAgeMs = Date.now() - cachedSchedule.lastFetched.getTime()
+      cacheAge = Math.floor(cacheAgeMs / (1000 * 60))
+    } else if (cachedSchedule?.lastFetched && Date.now() - cachedSchedule.lastFetched.getTime() < maxCacheDurationInMS) {
       scheduleResult = cachedSchedule.results
       parsedAt = cachedSchedule.lastFetched
     } else {
@@ -183,13 +257,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
         if (cachedSchedule) {
           scheduleResult = cachedSchedule.results
           parsedAt = cachedSchedule.lastFetched
+          isFromCache = true
+          const cacheAgeMs = Date.now() - cachedSchedule.lastFetched.getTime()
+          cacheAge = Math.floor(cacheAgeMs / (1000 * 60))
           // Логируем использование fallback кэша с указанием возраста
-          const cacheAge = Date.now() - cachedSchedule.lastFetched.getTime()
-          const cacheAgeMinutes = Math.floor(cacheAge / (1000 * 60))
           if (e instanceof ScheduleTimeoutError) {
-            console.warn(`Schedule fetch timeout for group ${group}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAgeMinutes} minutes old)`)
+            console.warn(`Schedule fetch timeout for group ${group}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAge} minutes old)`)
           } else {
-            console.warn(`Schedule fetch error for group ${group}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAgeMinutes} minutes old)`)
+            console.warn(`Schedule fetch error for group ${group}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAge} minutes old)`)
           }
         } else {
           // Если кэша нет, возвращаем страницу с ошибкой вместо throw
@@ -223,6 +298,15 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
       }
     }
     
+    // Debug: принудительно показать пустое расписание
+    if (debug.forceEmpty) {
+      scheduleResult = {
+        days: [],
+        currentWk: scheduleResult.currentWk,
+        availableWeeks: scheduleResult.availableWeeks
+      }
+    }
+    
     const schedule = scheduleResult.days
 
     const getSha256Hash = (input: string) => {
@@ -246,6 +330,12 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
       .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
       .map(([k]) => k.split('_')[0]) // Берем только группу из ключа кэша
 
+    // Debug: информация о кэше
+    const cacheInfo = debug.showCacheInfo ? {
+      size: cachedSchedules.size,
+      entries: cachedSchedules.size
+    } : undefined
+
     context.res.setHeader('ETag', `"${etag}"`)
     return {
       props: nextSerialized({
@@ -259,7 +349,10 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
         groups,
         currentWk: scheduleResult.currentWk ?? null,
         availableWeeks: scheduleResult.availableWeeks ?? null,
-        settings
+        settings,
+        isFromCache: isFromCache ?? false,
+        cacheAge: cacheAge ?? null,
+        cacheInfo: cacheInfo ?? null
       })
     }
   } else {

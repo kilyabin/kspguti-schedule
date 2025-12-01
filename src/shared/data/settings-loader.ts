@@ -3,6 +3,13 @@ import path from 'path'
 
 export type AppSettings = {
   weekNavigationEnabled: boolean
+  debug?: {
+    forceCache?: boolean
+    forceEmpty?: boolean
+    forceError?: boolean
+    forceTimeout?: boolean
+    showCacheInfo?: boolean
+  }
 }
 
 let cachedSettings: AppSettings | null = null
@@ -10,7 +17,14 @@ let cachedSettingsPath: string | null = null
 let cachedSettingsMtime: number | null = null
 
 const defaultSettings: AppSettings = {
-  weekNavigationEnabled: true
+  weekNavigationEnabled: true,
+  debug: {
+    forceCache: false,
+    forceEmpty: false,
+    forceError: false,
+    forceTimeout: false,
+    showCacheInfo: false
+  }
 }
 
 /**
@@ -60,7 +74,11 @@ export function loadSettings(): AppSettings {
       // Убеждаемся, что все обязательные поля присутствуют
       const mergedSettings: AppSettings = {
         ...defaultSettings,
-        ...settings
+        ...settings,
+        debug: {
+          ...defaultSettings.debug,
+          ...settings.debug
+        }
       }
       
       cachedSettings = mergedSettings
@@ -112,7 +130,11 @@ export function saveSettings(settings: AppSettings): void {
   // Объединяем с настройками по умолчанию для сохранения всех полей
   const mergedSettings: AppSettings = {
     ...defaultSettings,
-    ...settings
+    ...settings,
+    debug: {
+      ...defaultSettings.debug,
+      ...settings.debug
+    }
   }
   
   // Ищем существующий файл
