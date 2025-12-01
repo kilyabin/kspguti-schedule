@@ -21,15 +21,37 @@ async function handler(
 
   if (req.method === 'PUT') {
     // Обновление настроек
-    const { weekNavigationEnabled } = req.body
+    const { weekNavigationEnabled, debug } = req.body
 
     if (typeof weekNavigationEnabled !== 'boolean') {
       res.status(400).json({ error: 'weekNavigationEnabled must be a boolean' })
       return
     }
 
+    // Валидация debug опций (только в dev режиме)
+    if (debug !== undefined) {
+      if (typeof debug !== 'object' || debug === null) {
+        res.status(400).json({ error: 'debug must be an object' })
+        return
+      }
+      
+      if (process.env.NODE_ENV !== 'development') {
+        res.status(403).json({ error: 'Debug options are only available in development mode' })
+        return
+      }
+
+      const debugKeys = ['forceCache', 'forceEmpty', 'forceError', 'forceTimeout', 'showCacheInfo']
+      for (const key of debugKeys) {
+        if (key in debug && typeof debug[key] !== 'boolean' && debug[key] !== undefined) {
+          res.status(400).json({ error: `debug.${key} must be a boolean` })
+          return
+        }
+      }
+    }
+
     const settings: AppSettings = {
-      weekNavigationEnabled
+      weekNavigationEnabled,
+      ...(debug !== undefined && { debug })
     }
 
     try {

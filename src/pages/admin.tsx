@@ -17,6 +17,12 @@ import { loadSettings, AppSettings } from '@/shared/data/settings-loader'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shadcn/ui/select'
 import { ToastContainer, Toast } from '@/shared/ui/toast'
 import Head from 'next/head'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/shadcn/ui/accordion'
 
 type AdminPageProps = {
   groups: GroupsData
@@ -444,6 +450,144 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
               )}
             </CardContent>
           </Card>
+
+          {process.env.NODE_ENV === 'development' && (
+            <Card>
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="debug-options">
+                  <AccordionTrigger className="px-6">
+                    <CardTitle className="text-base">Debug опции</CardTitle>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CardContent className="pt-0">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <div className="font-semibold">Принудительно использовать кэш</div>
+                            <div className="text-sm text-muted-foreground">
+                              Принудительно использовать кэш, даже если он свежий (симулирует ошибку парсинга)
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.debug?.forceCache ?? false}
+                              onChange={(e) => handleUpdateSettings({
+                                ...settings,
+                                debug: {
+                                  ...settings.debug,
+                                  forceCache: e.target.checked
+                                }
+                              })}
+                              disabled={loading}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
+                          </label>
+                        </div>
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <div className="font-semibold">Принудительно показать пустое расписание</div>
+                            <div className="text-sm text-muted-foreground">
+                              Показать пустое расписание независимо от реальных данных
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.debug?.forceEmpty ?? false}
+                              onChange={(e) => handleUpdateSettings({
+                                ...settings,
+                                debug: {
+                                  ...settings.debug,
+                                  forceEmpty: e.target.checked
+                                }
+                              })}
+                              disabled={loading}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
+                          </label>
+                        </div>
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <div className="font-semibold">Принудительно показать ошибку</div>
+                            <div className="text-sm text-muted-foreground">
+                              Показать страницу ошибки независимо от реальных данных
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.debug?.forceError ?? false}
+                              onChange={(e) => handleUpdateSettings({
+                                ...settings,
+                                debug: {
+                                  ...settings.debug,
+                                  forceError: e.target.checked
+                                }
+                              })}
+                              disabled={loading}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
+                          </label>
+                        </div>
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <div className="font-semibold">Принудительно симулировать таймаут</div>
+                            <div className="text-sm text-muted-foreground">
+                              Симулировать таймаут при загрузке расписания
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.debug?.forceTimeout ?? false}
+                              onChange={(e) => handleUpdateSettings({
+                                ...settings,
+                                debug: {
+                                  ...settings.debug,
+                                  forceTimeout: e.target.checked
+                                }
+                              })}
+                              disabled={loading}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
+                          </label>
+                        </div>
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <div className="font-semibold">Показать информацию о кэше</div>
+                            <div className="text-sm text-muted-foreground">
+                              Показать дополнительную информацию о кэше в интерфейсе
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={settings.debug?.showCacheInfo ?? false}
+                              onChange={(e) => handleUpdateSettings({
+                                ...settings,
+                                debug: {
+                                  ...settings.debug,
+                                  showCacheInfo: e.target.checked
+                                }
+                              })}
+                              disabled={loading}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
+                          </label>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+          )}
         </div>
       </div>
 

@@ -1,3 +1,10 @@
 {
-  "weekNavigationEnabled": false
+  "weekNavigationEnabled": false,
+  "debug": {
+    "forceCache": true,
+    "forceEmpty": false,
+    "forceError": false,
+    "forceTimeout": false,
+    "showCacheInfo": false
+  }
 }
