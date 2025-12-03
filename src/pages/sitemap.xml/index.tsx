@@ -4,6 +4,7 @@ import { loadGroups } from '@/shared/data/groups-loader'
 import { SITEMAP_SITE_URL } from '@/shared/constants/urls'
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  // Используем кеш (обновляется каждую минуту автоматически)
   const groups = loadGroups()
   const fields = Object.keys(groups).map<ISitemapField>(group => (
     {

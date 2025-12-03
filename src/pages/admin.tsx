@@ -27,9 +27,74 @@ import {
 type AdminPageProps = {
   groups: GroupsData
   settings: AppSettings
+  isDefaultPassword: boolean
 }
 
-export default function AdminPage({ groups: initialGroups, settings: initialSettings }: AdminPageProps) {
+// Компонент Toggle Switch
+function ToggleSwitch({ checked, onChange, disabled }: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="sr-only peer"
+      />
+      <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
+    </label>
+  )
+}
+
+// Компонент выбора курса
+function CourseSelect({ value, onChange, id }: {
+  value: string
+  onChange: (value: string) => void
+  id: string
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger id={id}>
+        <SelectValue placeholder="Выберите курс" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="1">1 курс</SelectItem>
+        <SelectItem value="2">2 курс</SelectItem>
+        <SelectItem value="3">3 курс</SelectItem>
+        <SelectItem value="4">4 курс</SelectItem>
+        <SelectItem value="5">5 курс</SelectItem>
+      </SelectContent>
+    </Select>
+  )
+}
+
+// Компонент для DialogFooter с кнопками
+function DialogFooterButtons({ onCancel, onSubmit, submitLabel, loading, submitVariant = 'default' }: {
+  onCancel: () => void
+  onSubmit?: () => void
+  submitLabel: string
+  loading?: boolean
+  submitVariant?: 'default' | 'destructive'
+}) {
+  return (
+    <DialogFooter>
+      <Button type="button" variant="outline" onClick={onCancel}>
+        Отмена
+      </Button>
+      {onSubmit && (
+        <Button type="button" variant={submitVariant} onClick={onSubmit} disabled={loading}>
+          {loading ? 'Обработка...' : submitLabel}
+        </Button>
+      )}
+    </DialogFooter>
+  )
+}
+
+export default function AdminPage({ groups: initialGroups, settings: initialSettings, isDefaultPassword: initialIsDefaultPassword }: AdminPageProps) {
   const [authenticated, setAuthenticated] = React.useState<boolean | null>(null)
   const [password, setPassword] = React.useState('')
   const [loading, setLoading] = React.useState(false)
@@ -40,8 +105,18 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
   const [showAddDialog, setShowAddDialog] = React.useState(false)
   const [showEditDialog, setShowEditDialog] = React.useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
+  const [showLogsDialog, setShowLogsDialog] = React.useState(false)
+  const [logs, setLogs] = React.useState<string>('')
+  const [logsLoading, setLogsLoading] = React.useState(false)
   const [groupToDelete, setGroupToDelete] = React.useState<string | null>(null)
   const [toasts, setToasts] = React.useState<Toast[]>([])
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = React.useState(false)
+  const [isDefaultPassword, setIsDefaultPassword] = React.useState<boolean>(initialIsDefaultPassword)
+  const [passwordFormData, setPasswordFormData] = React.useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now().toString()
@@ -105,29 +180,22 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
     }
   }
 
-  const loadGroupsList = async () => {
+  const loadData = async <T,>(endpoint: string, setter: (data: T) => void) => {
     try {
-      const res = await fetch('/api/admin/groups')
+      const res = await fetch(endpoint)
       const data = await res.json()
       if (data.groups) {
-        setGroups(data.groups)
+        setter(data.groups as T)
+      } else if (data.settings) {
+        setter(data.settings as T)
       }
     } catch (err) {
-      console.error('Error loading groups:', err)
+      console.error(`Error loading data from ${endpoint}:`, err)
     }
   }
 
-  const loadSettingsList = async () => {
-    try {
-      const res = await fetch('/api/admin/settings')
-      const data = await res.json()
-      if (data.settings) {
-        setSettings(data.settings)
-      }
-    } catch (err) {
-      console.error('Error loading settings:', err)
-    }
-  }
+  const loadGroupsList = () => loadData('/api/admin/groups', setGroups)
+  const loadSettingsList = () => loadData('/api/admin/settings', setSettings)
 
   const handleUpdateSettings = async (newSettings: AppSettings) => {
     // Сохраняем предыдущее состояние для отката при ошибке
@@ -289,6 +357,29 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
     setShowDeleteDialog(true)
   }
 
+  const loadLogs = async () => {
+    setLogsLoading(true)
+    try {
+      const res = await fetch('/api/admin/logs')
+      const data = await res.json()
+      if (data.success && data.logs) {
+        setLogs(data.logs)
+      } else {
+        setLogs(data.error || 'Не удалось загрузить логи')
+      }
+    } catch (err) {
+      setLogs('Ошибка при загрузке логов')
+      console.error('Error loading logs:', err)
+    } finally {
+      setLogsLoading(false)
+    }
+  }
+
+  const handleOpenLogsDialog = () => {
+    setShowLogsDialog(true)
+    loadLogs()
+  }
+
   if (authenticated === null) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -350,19 +441,27 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold">Админ-панель</h1>
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await fetch('/api/admin/logout', { method: 'POST' })
-                } catch (err) {
-                  console.error('Logout error:', err)
-                }
-                setAuthenticated(false)
-              }}
-            >
-              Выйти
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleOpenLogsDialog}
+              >
+                Логи
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await fetch('/api/admin/logout', { method: 'POST' })
+                  } catch (err) {
+                    console.error('Logout error:', err)
+                  }
+                  setAuthenticated(false)
+                }}
+              >
+                Выйти
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -370,6 +469,34 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
               {error}
             </div>
           )}
+
+          {isDefaultPassword && (
+            <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+              <CardHeader>
+                <CardTitle className="text-yellow-800 dark:text-yellow-200">Внимание: используется стандартный пароль</CardTitle>
+                <CardDescription className="text-yellow-700 dark:text-yellow-300">
+                  Для безопасности рекомендуется сменить пароль на более надежный
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setShowChangePasswordDialog(true)} variant="default">
+                  Сменить пароль
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Безопасность</CardTitle>
+              <CardDescription>Управление паролем администратора</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => setShowChangePasswordDialog(true)} variant="outline">
+                Сменить пароль
+              </Button>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -385,16 +512,24 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                       Включить или выключить навигацию по неделям в расписании
                     </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.weekNavigationEnabled}
-                      onChange={(e) => handleUpdateSettings({ ...settings, weekNavigationEnabled: e.target.checked })}
-                      disabled={loading}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
-                  </label>
+                  <ToggleSwitch
+                    checked={settings.weekNavigationEnabled}
+                    onChange={(checked) => handleUpdateSettings({ ...settings, weekNavigationEnabled: checked })}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="font-semibold">Кнопка "Добавить группу"</div>
+                    <div className="text-sm text-muted-foreground">
+                      Отображать кнопку "Добавить группу" на главной странице
+                    </div>
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.showAddGroupButton ?? true}
+                    onChange={(checked) => handleUpdateSettings({ ...settings, showAddGroupButton: checked })}
+                    disabled={loading}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -468,22 +603,17 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                               Принудительно использовать кэш, даже если он свежий (симулирует ошибку парсинга)
                             </div>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.debug?.forceCache ?? false}
-                              onChange={(e) => handleUpdateSettings({
-                                ...settings,
-                                debug: {
-                                  ...settings.debug,
-                                  forceCache: e.target.checked
-                                }
-                              })}
-                              disabled={loading}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
-                          </label>
+                          <ToggleSwitch
+                            checked={settings.debug?.forceCache ?? false}
+                            onChange={(checked) => handleUpdateSettings({
+                              ...settings,
+                              debug: {
+                                ...settings.debug,
+                                forceCache: checked
+                              }
+                            })}
+                            disabled={loading}
+                          />
                         </div>
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                           <div>
@@ -492,22 +622,17 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                               Показать пустое расписание независимо от реальных данных
                             </div>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.debug?.forceEmpty ?? false}
-                              onChange={(e) => handleUpdateSettings({
-                                ...settings,
-                                debug: {
-                                  ...settings.debug,
-                                  forceEmpty: e.target.checked
-                                }
-                              })}
-                              disabled={loading}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
-                          </label>
+                          <ToggleSwitch
+                            checked={settings.debug?.forceEmpty ?? false}
+                            onChange={(checked) => handleUpdateSettings({
+                              ...settings,
+                              debug: {
+                                ...settings.debug,
+                                forceEmpty: checked
+                              }
+                            })}
+                            disabled={loading}
+                          />
                         </div>
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                           <div>
@@ -516,22 +641,17 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                               Показать страницу ошибки независимо от реальных данных
                             </div>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.debug?.forceError ?? false}
-                              onChange={(e) => handleUpdateSettings({
-                                ...settings,
-                                debug: {
-                                  ...settings.debug,
-                                  forceError: e.target.checked
-                                }
-                              })}
-                              disabled={loading}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
-                          </label>
+                          <ToggleSwitch
+                            checked={settings.debug?.forceError ?? false}
+                            onChange={(checked) => handleUpdateSettings({
+                              ...settings,
+                              debug: {
+                                ...settings.debug,
+                                forceError: checked
+                              }
+                            })}
+                            disabled={loading}
+                          />
                         </div>
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                           <div>
@@ -540,22 +660,17 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                               Симулировать таймаут при загрузке расписания
                             </div>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.debug?.forceTimeout ?? false}
-                              onChange={(e) => handleUpdateSettings({
-                                ...settings,
-                                debug: {
-                                  ...settings.debug,
-                                  forceTimeout: e.target.checked
-                                }
-                              })}
-                              disabled={loading}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
-                          </label>
+                          <ToggleSwitch
+                            checked={settings.debug?.forceTimeout ?? false}
+                            onChange={(checked) => handleUpdateSettings({
+                              ...settings,
+                              debug: {
+                                ...settings.debug,
+                                forceTimeout: checked
+                              }
+                            })}
+                            disabled={loading}
+                          />
                         </div>
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                           <div>
@@ -564,22 +679,17 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                               Показать дополнительную информацию о кэше в интерфейсе
                             </div>
                           </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={settings.debug?.showCacheInfo ?? false}
-                              onChange={(e) => handleUpdateSettings({
-                                ...settings,
-                                debug: {
-                                  ...settings.debug,
-                                  showCacheInfo: e.target.checked
-                                }
-                              })}
-                              disabled={loading}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500"></div>
-                          </label>
+                          <ToggleSwitch
+                            checked={settings.debug?.showCacheInfo ?? false}
+                            onChange={(checked) => handleUpdateSettings({
+                              ...settings,
+                              debug: {
+                                ...settings.debug,
+                                showCacheInfo: checked
+                              }
+                            })}
+                            disabled={loading}
+                          />
                         </div>
                       </div>
                     </CardContent>
@@ -639,21 +749,11 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
               </div>
               <div className="space-y-2">
                 <Label htmlFor="add-course">Курс</Label>
-                <Select
+                <CourseSelect
                   value={formData.course}
-                  onValueChange={(value) => setFormData({ ...formData, course: value })}
-                >
-                  <SelectTrigger id="add-course">
-                    <SelectValue placeholder="Выберите курс" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 курс</SelectItem>
-                    <SelectItem value="2">2 курс</SelectItem>
-                    <SelectItem value="3">3 курс</SelectItem>
-                    <SelectItem value="4">4 курс</SelectItem>
-                    <SelectItem value="5">5 курс</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(value) => setFormData({ ...formData, course: value })}
+                  id="add-course"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -712,21 +812,11 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-course">Курс</Label>
-                <Select
+                <CourseSelect
                   value={formData.course}
-                  onValueChange={(value) => setFormData({ ...formData, course: value })}
-                >
-                  <SelectTrigger id="edit-course">
-                    <SelectValue placeholder="Выберите курс" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 курс</SelectItem>
-                    <SelectItem value="2">2 курс</SelectItem>
-                    <SelectItem value="3">3 курс</SelectItem>
-                    <SelectItem value="4">4 курс</SelectItem>
-                    <SelectItem value="5">5 курс</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(value) => setFormData({ ...formData, course: value })}
+                  id="edit-course"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -751,14 +841,158 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
               Это действие нельзя отменить.
             </DialogDescription>
           </DialogHeader>
+          <DialogFooterButtons
+            onCancel={() => setShowDeleteDialog(false)}
+            onSubmit={handleDeleteGroup}
+            submitLabel="Удалить"
+            loading={loading}
+            submitVariant="destructive"
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог просмотра логов */}
+      <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Логи ошибок</DialogTitle>
+            <DialogDescription>
+              Содержимое файла error.log
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {logsLoading ? (
+              <div className="p-4 text-center text-muted-foreground">Загрузка логов...</div>
+            ) : (
+              <div className="relative">
+                <pre className="p-4 bg-muted rounded-md overflow-auto max-h-[60vh] text-sm font-mono whitespace-pre-wrap break-words">
+                  {logs || 'Логи пусты'}
+                </pre>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={loadLogs}
+                >
+                  Обновить
+                </Button>
+              </div>
+            )}
+          </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Отмена
-            </Button>
-            <Button type="button" variant="destructive" onClick={handleDeleteGroup} disabled={loading}>
-              {loading ? 'Удаление...' : 'Удалить'}
+            <Button type="button" variant="outline" onClick={() => setShowLogsDialog(false)}>
+              Закрыть
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог смены пароля */}
+      <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Сменить пароль</DialogTitle>
+            <DialogDescription>
+              Введите старый пароль и новый пароль (минимум 8 символов)
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault()
+              setLoading(true)
+              setError(null)
+
+              // Валидация на клиенте
+              if (passwordFormData.newPassword.length < 8) {
+                setError('Новый пароль должен содержать минимум 8 символов')
+                setLoading(false)
+                return
+              }
+
+              if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
+                setError('Новые пароли не совпадают')
+                setLoading(false)
+                return
+              }
+
+              try {
+                const res = await fetch('/api/admin/change-password', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    oldPassword: passwordFormData.oldPassword,
+                    newPassword: passwordFormData.newPassword
+                  })
+                })
+
+                const data = await res.json()
+
+                if (res.ok && data.success) {
+                  setShowChangePasswordDialog(false)
+                  setPasswordFormData({ oldPassword: '', newPassword: '', confirmPassword: '' })
+                  setIsDefaultPassword(false) // После смены пароля он больше не дефолтный
+                  showToast('Пароль успешно изменен', 'success')
+                } else {
+                  const errorMessage = data.error || 'Ошибка при смене пароля'
+                  setError(errorMessage)
+                  showToast(errorMessage, 'error')
+                }
+              } catch (err) {
+                const errorMessage = 'Ошибка соединения с сервером'
+                setError(errorMessage)
+                showToast(errorMessage, 'error')
+              } finally {
+                setLoading(false)
+              }
+            }}
+          >
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="old-password">Старый пароль</Label>
+                <Input
+                  id="old-password"
+                  type="password"
+                  value={passwordFormData.oldPassword}
+                  onChange={(e) => setPasswordFormData({ ...passwordFormData, oldPassword: e.target.value })}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">Новый пароль</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={passwordFormData.newPassword}
+                  onChange={(e) => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
+                  required
+                  minLength={8}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Минимум 8 символов
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Подтверждение нового пароля</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={passwordFormData.confirmPassword}
+                  onChange={(e) => setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })}
+                  required
+                  minLength={8}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowChangePasswordDialog(false)}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Сохранение...' : 'Сменить пароль'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -771,11 +1005,16 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
 export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () => {
   const groups = loadGroups()
   const settings = loadSettings()
+  
+  // Проверяем, используется ли дефолтный пароль
+  const { isDefaultPassword } = await import('@/shared/data/database')
+  const isDefault = await isDefaultPassword()
+  
   return {
     props: {
       groups,
-      settings
+      settings,
+      isDefaultPassword: isDefault
     }
   }
 }
-

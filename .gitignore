@@ -40,3 +40,12 @@ next-env.d.ts
 
 # dependency hash (installation-specific)
 .dependencies.hash
+
+# error logs
+error.log
+
+# database files
+data/
+*.db
+*.db-shm
+*.db-wal

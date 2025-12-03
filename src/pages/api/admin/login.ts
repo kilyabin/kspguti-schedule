@@ -80,7 +80,7 @@ function recordFailedAttempt(ip: string): void {
   })
 }
 
-export default function handler(
+export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
@@ -109,7 +109,8 @@ export default function handler(
     return
   }
 
-  if (verifyPassword(password)) {
+  const isValid = await verifyPassword(password)
+  if (isValid) {
     // Успешный вход - сбрасываем rate limit
     rateLimitMap.delete(clientIP)
     setSessionCookie(res)
