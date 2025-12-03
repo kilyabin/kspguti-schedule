@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import crypto from 'crypto'
+import { verifyPassword as verifyPasswordFromDB } from '@/shared/data/database'
 
 const SESSION_COOKIE_NAME = 'admin_session'
 const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET
@@ -23,29 +24,13 @@ function getSessionSecret(): string {
 
 /**
  * Проверяет пароль администратора
- * Использует timing-safe сравнение для защиты от timing attacks
+ * Использует bcrypt для проверки хэшированного пароля из БД
  */
-export function verifyPassword(password: string): boolean {
-  const adminPassword = process.env.ADMIN_PASSWORD
-  if (!adminPassword) {
-    console.error('ADMIN_PASSWORD is not set')
-    return false
-  }
-  
-  // Используем timing-safe сравнение для защиты от timing attacks
-  if (password.length !== adminPassword.length) {
-    return false
-  }
-  
+export async function verifyPassword(password: string): Promise<boolean> {
   try {
-    const passwordBuffer = Buffer.from(password, 'utf8')
-    const adminPasswordBuffer = Buffer.from(adminPassword, 'utf8')
-    // Buffer в Node.js наследуется от Uint8Array и совместим с ArrayBufferView
-    return crypto.timingSafeEqual(
-      passwordBuffer as Uint8Array,
-      adminPasswordBuffer as Uint8Array
-    )
-  } catch {
+    return await verifyPasswordFromDB(password)
+  } catch (error) {
+    console.error('Error verifying password:', error)
     return false
   }
 }
@@ -146,6 +131,10 @@ export function requireAuth(
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
-  return handler(req, res)
+  const result = handler(req, res)
+  // Если handler возвращает Promise, возвращаем его
+  if (result instanceof Promise) {
+    return result
+  }
 }
 

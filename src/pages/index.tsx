@@ -1,6 +1,7 @@
 import React from 'react'
 import { GetServerSideProps } from 'next'
 import { loadGroups, GroupsData } from '@/shared/data/groups-loader'
+import { loadSettings } from '@/shared/data/settings-loader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shadcn/ui/card'
 import { Button } from '@/shadcn/ui/button'
 import { ThemeSwitcher } from '@/features/theme-switch'
@@ -24,10 +25,11 @@ import { BsTelegram } from 'react-icons/bs'
 type HomePageProps = {
   groups: GroupsData
   groupsByCourse: { [course: number]: Array<{ id: string; name: string }> }
+  showAddGroupButton: boolean
 }
 
-export default function HomePage({ groups, groupsByCourse }: HomePageProps) {
-  const [openCourses, setOpenCourses] = React.useState<Set<number>>(new Set([1]))
+export default function HomePage({ groups, groupsByCourse, showAddGroupButton }: HomePageProps) {
+  const [openCourses, setOpenCourses] = React.useState<Set<number>>(new Set())
   const [addGroupDialogOpen, setAddGroupDialogOpen] = React.useState(false)
 
   // Подсчитываем смещения для каждого курса для последовательной анимации
@@ -148,28 +150,30 @@ export default function HomePage({ groups, groupsByCourse }: HomePageProps) {
           )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
-            <div
-              className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
-            >
-              <Button
-                variant="secondary"
-                onClick={() => setAddGroupDialogOpen(true)}
-                className="gap-2"
+            {showAddGroupButton && (
+              <div
+                className="stagger-card"
+                style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
               >
-                <MdAdd className="h-4 w-4" />
-                Добавить группу
-              </Button>
-            </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => setAddGroupDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <MdAdd className="h-4 w-4" />
+                  Добавить группу
+                </Button>
+              </div>
+            )}
             <div
               className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.08}s` } as React.CSSProperties}
+              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.08 : 0.05)}s` } as React.CSSProperties}
             >
               <ThemeSwitcher />
             </div>
             <div
               className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.11}s` } as React.CSSProperties}
+              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.11 : 0.08)}s` } as React.CSSProperties}
             >
               <Link href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" className="gap-2">
@@ -208,7 +212,9 @@ export default function HomePage({ groups, groupsByCourse }: HomePageProps) {
 }
 
 export const getServerSideProps: GetServerSideProps<HomePageProps> = async () => {
+  // Используем кеш (обновляется каждую минуту автоматически)
   const groups = loadGroups()
+  const settings = loadSettings()
 
   // Группируем группы по курсам
   const groupsByCourse: { [course: number]: Array<{ id: string; name: string }> } = {}
@@ -229,7 +235,8 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
   return {
     props: {
       groups,
-      groupsByCourse
+      groupsByCourse,
+      showAddGroupButton: settings.showAddGroupButton ?? true
     }
   }
 }

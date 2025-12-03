@@ -1,5 +1,4 @@
-import fs from 'fs'
-import path from 'path'
+import { getAllGroups as getAllGroupsFromDB, createGroup, updateGroup, deleteGroup, getGroup } from './database'
 
 export type GroupInfo = {
   parseId: number
@@ -9,120 +8,74 @@ export type GroupInfo = {
 
 export type GroupsData = { [group: string]: GroupInfo }
 
-// Старый формат для миграции
-type OldGroupsData = { [group: string]: [number, string] | GroupInfo }
-
 let cachedGroups: GroupsData | null = null
+let cacheTimestamp: number = 0
+const CACHE_TTL_MS = 1000 * 60 // 1 минута
 
 /**
- * Мигрирует старый формат данных в новый
+ * Загружает группы из базы данных
+ * Использует кеш с TTL для оптимизации, но всегда загружает свежие данные при необходимости
  */
-function migrateGroups(oldGroups: OldGroupsData): GroupsData {
-  const migrated: GroupsData = {}
+export function loadGroups(forceRefresh: boolean = false): GroupsData {
+  const now = Date.now()
+  const isCacheValid = cachedGroups !== null && !forceRefresh && (now - cacheTimestamp) < CACHE_TTL_MS
   
-  for (const [id, data] of Object.entries(oldGroups)) {
-    // Проверяем, является ли это старым форматом [parseId, name]
-    if (Array.isArray(data) && data.length === 2 && typeof data[0] === 'number' && typeof data[1] === 'string') {
-      // Старый формат - мигрируем
-      migrated[id] = {
-        parseId: data[0],
-        name: data[1],
-        course: 1 // По умолчанию курс 1
-      }
-    } else if (typeof data === 'object' && 'parseId' in data && 'name' in data) {
-      // Уже новый формат
-      migrated[id] = data as GroupInfo
-    }
-  }
-  
-  return migrated
-}
-
-/**
- * Загружает группы из JSON файла
- * Использует кеш для оптимизации в production
- * Автоматически мигрирует старый формат в новый
- */
-export function loadGroups(): GroupsData {
-  if (cachedGroups) {
+  if (isCacheValid && cachedGroups !== null) {
     return cachedGroups
   }
 
-  // В production Next.js может использовать другую структуру директорий
-  // Пробуем несколько путей
-  const possiblePaths = [
-    path.join(process.cwd(), 'src/shared/data/groups.json'),
-    path.join(process.cwd(), '.next/standalone/src/shared/data/groups.json'),
-    path.join(process.cwd(), 'groups.json'),
-  ]
-  
-  for (const filePath of possiblePaths) {
-    try {
-      if (fs.existsSync(filePath)) {
-        const fileContents = fs.readFileSync(filePath, 'utf8')
-        const rawGroups = JSON.parse(fileContents) as OldGroupsData
-        
-        // Проверяем, нужна ли миграция
-        const needsMigration = Object.values(rawGroups).some(
-          data => Array.isArray(data) && data.length === 2
-        )
-        
-        let groups: GroupsData
-        if (needsMigration) {
-          // Мигрируем старый формат
-          groups = migrateGroups(rawGroups)
-          // Сохраняем мигрированные данные
-          const mainPath = path.join(process.cwd(), 'src/shared/data/groups.json')
-          if (filePath === mainPath) {
-            // Сохраняем только если это основной файл
-            fs.writeFileSync(mainPath, JSON.stringify(groups, null, 2), 'utf8')
-            console.log('Groups data migrated to new format')
-          }
-        } else {
-          groups = rawGroups as GroupsData
-        }
-        
-        cachedGroups = groups
-        return groups
-      }
-    } catch (error) {
-      // Пробуем следующий путь
-      continue
-    }
+  try {
+    cachedGroups = getAllGroupsFromDB()
+    cacheTimestamp = now
+    return cachedGroups
+  } catch (error) {
+    console.error('Error loading groups from database:', error)
+    // Fallback к пустому объекту
+    return {}
   }
-  
-  console.error('Error loading groups.json: file not found in any of the expected locations')
-  // Fallback к пустому объекту
-  return {}
 }
 
 /**
- * Сохраняет группы в JSON файл
+ * Сохраняет группы в базу данных
  */
 export function saveGroups(groups: GroupsData): void {
-  // Всегда сохраняем в основной путь
-  const filePath = path.join(process.cwd(), 'src/shared/data/groups.json')
-  
   try {
-    // Создаем директорию, если её нет
-    const dir = path.dirname(filePath)
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+    const existingGroups = getAllGroupsFromDB()
     
-    fs.writeFileSync(filePath, JSON.stringify(groups, null, 2), 'utf8')
-    // Сбрасываем кеш
+    // Определяем, какие группы нужно добавить, обновить или удалить
+    const existingIds = new Set(Object.keys(existingGroups))
+    const newIds = new Set(Object.keys(groups))
+
+    // Добавляем или обновляем группы
+    for (const [id, group] of Object.entries(groups)) {
+      if (existingIds.has(id)) {
+        updateGroup(id, group)
+      } else {
+        createGroup(id, group)
+      }
+    }
+
+    // Удаляем группы, которых больше нет
+    for (const id of existingIds) {
+      if (!newIds.has(id)) {
+        deleteGroup(id)
+      }
+    }
+
+    // Сбрасываем кеш и timestamp
     cachedGroups = null
+    cacheTimestamp = 0
   } catch (error) {
-    console.error('Error saving groups.json:', error)
+    console.error('Error saving groups to database:', error)
     throw new Error('Failed to save groups')
   }
 }
 
 /**
- * Сбрасывает кеш групп (полезно после обновления файла)
+ * Сбрасывает кеш групп (полезно после обновления)
  */
 export function clearGroupsCache(): void {
   cachedGroups = null
+  cacheTimestamp = 0
 }
 

@@ -1,30 +1,34 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireAuth } from '@/shared/utils/auth'
-import { loadSettings, saveSettings, AppSettings } from '@/shared/data/settings-loader'
+import { withAuth, ApiResponse } from '@/shared/utils/api-wrapper'
+import { loadSettings, saveSettings, clearSettingsCache, AppSettings } from '@/shared/data/settings-loader'
 
-type ResponseData = {
+type ResponseData = ApiResponse<{
   settings?: AppSettings
-  success?: boolean
-  error?: string
-}
+}>
 
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
   if (req.method === 'GET') {
-    // Получение настроек
-    const settings = loadSettings()
+    // Получение настроек (всегда свежие данные для админ-панели)
+    clearSettingsCache()
+    const settings = loadSettings(true)
     res.status(200).json({ settings })
     return
   }
 
   if (req.method === 'PUT') {
     // Обновление настроек
-    const { weekNavigationEnabled, debug } = req.body
+    const { weekNavigationEnabled, showAddGroupButton, debug } = req.body
 
     if (typeof weekNavigationEnabled !== 'boolean') {
       res.status(400).json({ error: 'weekNavigationEnabled must be a boolean' })
+      return
+    }
+
+    if (showAddGroupButton !== undefined && typeof showAddGroupButton !== 'boolean') {
+      res.status(400).json({ error: 'showAddGroupButton must be a boolean' })
       return
     }
 
@@ -51,32 +55,20 @@ async function handler(
 
     const settings: AppSettings = {
       weekNavigationEnabled,
+      showAddGroupButton: showAddGroupButton !== undefined ? showAddGroupButton : true,
       ...(debug !== undefined && { debug })
     }
 
-    try {
-      saveSettings(settings)
-      // Сбрасываем кеш и загружаем свежие настройки для подтверждения
-      const { clearSettingsCache } = await import('@/shared/data/settings-loader')
-      clearSettingsCache()
-      const savedSettings = loadSettings()
-      res.status(200).json({ success: true, settings: savedSettings })
-    } catch (error) {
-      console.error('Error saving settings:', error)
-      res.status(500).json({ error: 'Failed to save settings' })
-    }
+    saveSettings(settings)
+    // Сбрасываем кеш и загружаем свежие настройки для подтверждения
+    clearSettingsCache()
+    const savedSettings = loadSettings(true)
+    res.status(200).json({ success: true, settings: savedSettings })
     return
   }
-
-  res.status(405).json({ error: 'Method not allowed' })
 }
 
-export default function protectedHandler(
-  req: NextApiRequest,
-  res: NextApiResponse<ResponseData>
-) {
-  return requireAuth(req, res, handler)
-}
+export default withAuth(handler, ['GET', 'PUT'])
 
 
 

@@ -1,12 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { requireAuth } from '@/shared/utils/auth'
-import { loadGroups, saveGroups, GroupsData } from '@/shared/data/groups-loader'
+import { withAuth, ApiResponse } from '@/shared/utils/api-wrapper'
+import { loadGroups, saveGroups, clearGroupsCache, GroupsData } from '@/shared/data/groups-loader'
+import { validateCourse } from '@/shared/utils/validation'
 
-type ResponseData = {
-  success?: boolean
+type ResponseData = ApiResponse<{
   groups?: GroupsData
-  error?: string
-}
+}>
 
 async function handler(
   req: NextApiRequest,
@@ -19,7 +18,8 @@ async function handler(
     return
   }
 
-  const groups = loadGroups()
+  // Загружаем группы с проверкой кеша
+  let groups = loadGroups()
 
   if (req.method === 'PUT') {
     // Редактирование группы
@@ -40,12 +40,9 @@ async function handler(
       return
     }
 
-    if (course !== undefined) {
-      const groupCourse = Number(course)
-      if (!Number.isInteger(groupCourse) || groupCourse < 1 || groupCourse > 5) {
-        res.status(400).json({ error: 'Course must be a number between 1 and 5' })
-        return
-      }
+    if (course !== undefined && !validateCourse(course)) {
+      res.status(400).json({ error: 'Course must be a number between 1 and 5' })
+      return
     }
 
     // Обновляем группу
@@ -56,13 +53,11 @@ async function handler(
       course: course !== undefined ? Number(course) : currentGroup.course
     }
 
-    try {
-      saveGroups(groups)
-      res.status(200).json({ success: true, groups })
-    } catch (error) {
-      console.error('Error saving groups:', error)
-      res.status(500).json({ error: 'Failed to save groups' })
-    }
+    saveGroups(groups)
+    // Сбрасываем кеш и загружаем свежие данные из БД
+    clearGroupsCache()
+    const updatedGroups = loadGroups(true)
+    res.status(200).json({ success: true, groups: updatedGroups })
     return
   }
 
@@ -75,23 +70,14 @@ async function handler(
 
     delete groups[id]
 
-    try {
-      saveGroups(groups)
-      res.status(200).json({ success: true, groups })
-    } catch (error) {
-      console.error('Error saving groups:', error)
-      res.status(500).json({ error: 'Failed to save groups' })
-    }
+    saveGroups(groups)
+    // Сбрасываем кеш и загружаем свежие данные из БД
+    clearGroupsCache()
+    const updatedGroups = loadGroups(true)
+    res.status(200).json({ success: true, groups: updatedGroups })
     return
   }
-
-  res.status(405).json({ error: 'Method not allowed' })
 }
 
-export default function protectedHandler(
-  req: NextApiRequest,
-  res: NextApiResponse<ResponseData>
-) {
-  return requireAuth(req, res, handler)
-}
+export default withAuth(handler, ['PUT', 'DELETE'])
 

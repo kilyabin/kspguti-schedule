@@ -2,7 +2,7 @@ import { Day } from '@/shared/model/day'
 import { parsePage, ParseResult, WeekInfo } from '@/app/parser/schedule'
 import contentTypeParser from 'content-type'
 import { JSDOM } from 'jsdom'
-import { reportParserError } from '@/app/logger'
+import { reportParserError, logErrorToFile } from '@/app/logger'
 import { PROXY_URL } from '@/shared/constants/urls'
 
 export type ScheduleResult = {
@@ -60,19 +60,78 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
           dom.window.close()
         }
         console.error(`Error while parsing ${PROXY_URL}`)
+        const error = e instanceof Error ? e : new Error(String(e))
+        logErrorToFile(error, {
+          type: 'parsing_error',
+          groupName,
+          url,
+          groupID
+        })
         reportParserError(new Date().toISOString(), 'Не удалось сделать парсинг для группы', groupName)
         throw e
       }
     } else {
       // Логируем только метаданные, без содержимого ответа
       console.error(`Failed to fetch schedule: status=${page.status}, contentType=${contentType}, contentLength=${content.length}`)
+      const error = new Error(`Error while fetching ${PROXY_URL}: status ${page.status}`)
+      logErrorToFile(error, {
+        type: 'fetch_error',
+        groupName,
+        url,
+        groupID,
+        status: page.status,
+        contentType
+      })
       reportParserError(new Date().toISOString(), 'Не удалось получить страницу для группы', groupName)
-      throw new Error(`Error while fetching ${PROXY_URL}: status ${page.status}`)
+      throw error
     }
   } catch (error) {
     clearTimeout(timeoutId)
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new ScheduleTimeoutError(`Request timeout while fetching ${PROXY_URL}`)
+      const timeoutError = new ScheduleTimeoutError(`Request timeout while fetching ${PROXY_URL}`)
+      logErrorToFile(timeoutError, {
+        type: 'timeout_error',
+        groupName,
+        url,
+        groupID
+      })
+      throw timeoutError
+    }
+    // Улучшенная обработка сетевых ошибок для диагностики
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    if (errorObj && 'cause' in errorObj && errorObj.cause instanceof Error) {
+      const networkError = errorObj.cause as Error & { code?: string }
+      if (networkError.code === 'ECONNRESET' || networkError.code === 'ECONNREFUSED' || networkError.code === 'ETIMEDOUT') {
+        console.error(`Network error while fetching ${PROXY_URL}:`, {
+          code: networkError.code,
+          message: networkError.message,
+          url
+        })
+        logErrorToFile(errorObj, {
+          type: 'network_error',
+          groupName,
+          url,
+          groupID,
+          networkErrorCode: networkError.code,
+          networkErrorMessage: networkError.message
+        })
+      } else {
+        // Логируем другие ошибки тоже
+        logErrorToFile(errorObj, {
+          type: 'unknown_error',
+          groupName,
+          url,
+          groupID
+        })
+      }
+    } else {
+      // Логируем ошибки без cause
+      logErrorToFile(errorObj, {
+        type: 'unknown_error',
+        groupName,
+        url,
+        groupID
+      })
     }
     throw error
   }
