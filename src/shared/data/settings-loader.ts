@@ -3,6 +3,8 @@ import { getSettings as getSettingsFromDB, updateSettings as updateSettingsInDB 
 export type AppSettings = {
   weekNavigationEnabled: boolean
   showAddGroupButton: boolean
+  vacationModeEnabled?: boolean
+  vacationModeContent?: string
   debug?: {
     forceCache?: boolean
     forceEmpty?: boolean
@@ -38,6 +40,8 @@ export function loadSettings(forceRefresh: boolean = false): AppSettings {
     const defaultSettings: AppSettings = {
       weekNavigationEnabled: false,
       showAddGroupButton: true,
+      vacationModeEnabled: false,
+      vacationModeContent: '',
       debug: {
         forceCache: false,
         forceEmpty: false,

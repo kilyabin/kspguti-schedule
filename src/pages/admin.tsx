@@ -117,6 +117,8 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
     newPassword: '',
     confirmPassword: ''
   })
+  const [showVacationModeEditDialog, setShowVacationModeEditDialog] = React.useState(false)
+  const [vacationModeContent, setVacationModeContent] = React.useState<string>(settings.vacationModeContent || '')
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     const id = Date.now().toString()
@@ -530,6 +532,39 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                     onChange={(checked) => handleUpdateSettings({ ...settings, showAddGroupButton: checked })}
                     disabled={loading}
                   />
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="font-semibold">Режим "Каникулы"</div>
+                      <div className="text-sm text-muted-foreground">
+                        Включить режим каникул (заменяет главную страницу)
+                      </div>
+                    </div>
+                    <ToggleSwitch
+                      checked={settings.vacationModeEnabled ?? false}
+                      onChange={(checked) => handleUpdateSettings({ ...settings, vacationModeEnabled: checked })}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold">Редактировать текст каникул</div>
+                      <div className="text-sm text-muted-foreground">
+                        Настроить текст, отображаемый в режиме каникул
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setVacationModeContent(settings.vacationModeContent || '')
+                        setShowVacationModeEditDialog(true)
+                      }}
+                      disabled={loading}
+                    >
+                      Редактировать
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -993,6 +1028,79 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог редактирования текста каникул */}
+      <Dialog open={showVacationModeEditDialog} onOpenChange={setShowVacationModeEditDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Редактирование текста режима Каникулы</DialogTitle>
+            <DialogDescription>
+              Отредактируйте текст, который будет отображаться в режиме каникул. Поддерживается форматирование Markdown.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="vacation-mode-content">Текст (Markdown)</Label>
+              <textarea
+                id="vacation-mode-content"
+                value={vacationModeContent}
+                onChange={(e) => setVacationModeContent(e.target.value)}
+                className="flex min-h-[300px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                placeholder="Введите текст в формате Markdown..."
+              />
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="font-semibold">Подсказки по форматированию:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li><code className="bg-muted px-1 py-0.5 rounded"># Заголовок</code> - заголовок первого уровня</li>
+                  <li><code className="bg-muted px-1 py-0.5 rounded">## Подзаголовок</code> - заголовок второго уровня</li>
+                  <li><code className="bg-muted px-1 py-0.5 rounded">**жирный**</code> - <strong>жирный текст</strong></li>
+                  <li><code className="bg-muted px-1 py-0.5 rounded">*курсив*</code> - <em>курсивный текст</em></li>
+                  <li><code className="bg-muted px-1 py-0.5 rounded">[текст](url)</code> - ссылка</li>
+                  <li><code className="bg-muted px-1 py-0.5 rounded">- элемент</code> - маркированный список</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowVacationModeEditDialog(false)
+                setVacationModeContent(settings.vacationModeContent || '')
+              }}
+            >
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                setLoading(true)
+                setError(null)
+
+                try {
+                  const updatedSettings = {
+                    ...settings,
+                    vacationModeContent: vacationModeContent
+                  }
+                  await handleUpdateSettings(updatedSettings)
+                  setShowVacationModeEditDialog(false)
+                  showToast('Текст каникул успешно сохранен', 'success')
+                } catch (err) {
+                  const errorMessage = 'Ошибка при сохранении текста'
+                  setError(errorMessage)
+                  showToast(errorMessage, 'error')
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              disabled={loading}
+            >
+              {loading ? 'Сохранение...' : 'Сохранить'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

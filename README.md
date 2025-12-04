@@ -158,6 +158,11 @@ The application includes an admin panel for managing groups and application sett
 - ⚠️ **Important:** Change the default password immediately after first login for security!
 - The admin panel will show a warning if the default password is still in use
 
+**Password recovery:**
+- If you forgot your admin password, you can reset it using the provided scripts
+- See `scripts/RESET_PASSWORD.md` for detailed instructions
+- Quick reset: `node scripts/reset-admin-password.js "new_password"`
+
 **Environment variables for admin panel:**
 - `ADMIN_SESSION_SECRET` - Secret key for session tokens (optional, defaults to 'change-me-in-production')
 - `ADMIN_PASSWORD` - Initial admin password (optional, defaults to 'ksadmin')
