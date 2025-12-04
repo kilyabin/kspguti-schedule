@@ -19,8 +19,12 @@ async function handler(
   }
 
   if (req.method === 'PUT') {
+    // Сначала загружаем текущие настройки из базы данных
+    clearSettingsCache()
+    const currentSettings = loadSettings(true)
+    
     // Обновление настроек
-    const { weekNavigationEnabled, showAddGroupButton, debug } = req.body
+    const { weekNavigationEnabled, showAddGroupButton, vacationModeEnabled, vacationModeContent, debug } = req.body
 
     if (typeof weekNavigationEnabled !== 'boolean') {
       res.status(400).json({ error: 'weekNavigationEnabled must be a boolean' })
@@ -32,31 +36,50 @@ async function handler(
       return
     }
 
+    if (vacationModeEnabled !== undefined && typeof vacationModeEnabled !== 'boolean') {
+      res.status(400).json({ error: 'vacationModeEnabled must be a boolean' })
+      return
+    }
+
+    if (vacationModeContent !== undefined && typeof vacationModeContent !== 'string') {
+      res.status(400).json({ error: 'vacationModeContent must be a string' })
+      return
+    }
+
     // Валидация debug опций (только в dev режиме)
+    // В production режиме debug опции просто игнорируются
+    let validatedDebug = undefined
     if (debug !== undefined) {
       if (typeof debug !== 'object' || debug === null) {
         res.status(400).json({ error: 'debug must be an object' })
         return
       }
       
-      if (process.env.NODE_ENV !== 'development') {
-        res.status(403).json({ error: 'Debug options are only available in development mode' })
-        return
-      }
-
-      const debugKeys = ['forceCache', 'forceEmpty', 'forceError', 'forceTimeout', 'showCacheInfo']
-      for (const key of debugKeys) {
-        if (key in debug && typeof debug[key] !== 'boolean' && debug[key] !== undefined) {
-          res.status(400).json({ error: `debug.${key} must be a boolean` })
-          return
+      if (process.env.NODE_ENV === 'development') {
+        // В development режиме разрешаем debug опции
+        const debugKeys = ['forceCache', 'forceEmpty', 'forceError', 'forceTimeout', 'showCacheInfo']
+        
+        // Валидация типов debug опций
+        for (const key of debugKeys) {
+          if (key in debug && typeof debug[key] !== 'boolean' && debug[key] !== undefined) {
+            res.status(400).json({ error: `debug.${key} must be a boolean` })
+            return
+          }
         }
+        
+        validatedDebug = debug
       }
+      // В production режиме debug опции просто игнорируются (не сохраняются)
     }
 
+    // Объединяем текущие настройки с новыми (новые значения перезаписывают старые)
     const settings: AppSettings = {
+      ...currentSettings,
       weekNavigationEnabled,
-      showAddGroupButton: showAddGroupButton !== undefined ? showAddGroupButton : true,
-      ...(debug !== undefined && { debug })
+      showAddGroupButton: showAddGroupButton !== undefined ? showAddGroupButton : (currentSettings.showAddGroupButton ?? true),
+      vacationModeEnabled: vacationModeEnabled !== undefined ? vacationModeEnabled : (currentSettings.vacationModeEnabled ?? false),
+      vacationModeContent: vacationModeContent !== undefined ? vacationModeContent : (currentSettings.vacationModeContent || ''),
+      ...(validatedDebug !== undefined && { debug: validatedDebug })
     }
 
     saveSettings(settings)
