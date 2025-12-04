@@ -109,7 +109,7 @@ kspguti-schedule/
 │   └── README.md               # Documentation for old files
 ├── scripts/                     # Deployment scripts
 ├── systemd/                    # Systemd service file
-├── data/                       # SQLite database files
+├── db/                         # SQLite database files
 ├── components.json             # shadcn/ui config
 ├── docker-compose.yml          # Docker Compose config
 ├── Dockerfile                 # Docker image definition
@@ -215,11 +215,12 @@ docker-compose down
 - `NEXT_PUBLIC_SITE_URL` - Site URL for canonical links and sitemap (optional)
 
 **Database:**
-- The application uses SQLite database (`data/schedule-app.db`) for storing:
+- The application uses SQLite database (`db/schedule-app.db`) for storing:
   - Groups configuration
   - Application settings
   - Admin password (hashed with bcrypt)
-- Database is automatically created on first run
+- Database is automatically created on first run in the `db/` directory at the project root
+- Database directory is excluded from deployment scripts to preserve data
 - No additional database setup required
 
 **Note:** Admin password is stored in SQLite database. Default password is `ksadmin` - change it after first login!

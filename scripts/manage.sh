@@ -103,6 +103,7 @@ case "$1" in
                   --exclude='.env.test.local' \
                   --exclude='*.md' \
                   --exclude='.dependencies.hash' \
+                  --exclude='db/' \
                   "$PROJECT_DIR/" "$INSTALL_DIR/"
         
         # Handle .env file (preserve existing if present)
@@ -111,6 +112,15 @@ case "$1" in
         elif [ -f "$PROJECT_DIR/.env" ]; then
             echo -e "${YELLOW}Copying .env file...${NC}"
             cp "$PROJECT_DIR/.env" "$INSTALL_DIR/.env"
+        fi
+        
+        # Убеждаемся, что папка db существует и не перезаписывается
+        if [ ! -d "$INSTALL_DIR/db" ]; then
+            echo -e "${YELLOW}Creating db directory for database...${NC}"
+            mkdir -p "$INSTALL_DIR/db"
+            chmod 755 "$INSTALL_DIR/db"
+        else
+            echo -e "${GREEN}Database directory exists, preserving existing database${NC}"
         fi
         
         # Change to installation directory for build

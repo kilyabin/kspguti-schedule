@@ -146,6 +146,7 @@ rsync -av --exclude='node_modules' \
           --exclude='.env.test' \
           --exclude='.env.test.local' \
           --exclude='*.md' \
+          --exclude='db/' \
           "$PROJECT_DIR/" "$INSTALL_DIR/"
 
 # Handle .env file
@@ -160,6 +161,16 @@ else
         cp "$INSTALL_DIR/.env.production.example" "$INSTALL_DIR/.env"
         echo -e "${YELLOW}Please edit $INSTALL_DIR/.env with your configuration${NC}"
     fi
+fi
+
+# Создаем папку db для базы данных, если её нет
+if [ ! -d "$INSTALL_DIR/db" ]; then
+    echo -e "${YELLOW}Creating db directory for database...${NC}"
+    mkdir -p "$INSTALL_DIR/db"
+    chmod 755 "$INSTALL_DIR/db"
+    echo -e "${GREEN}Database directory created at $INSTALL_DIR/db${NC}"
+elif [ -d "$INSTALL_DIR/db" ]; then
+    echo -e "${GREEN}Database directory already exists, preserving existing database${NC}"
 fi
 
 # Install dependencies (with check)

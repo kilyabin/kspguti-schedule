@@ -17,11 +17,26 @@ const readline = require('readline');
 
 // Определяем путь к базе данных
 function findDatabase() {
+  // Определяем корень проекта (для standalone режима поднимаемся на 2 уровня вверх)
+  let projectRoot = process.cwd();
+  if (projectRoot.includes('.next/standalone')) {
+    const match = projectRoot.match(/^(.+?)\/\.next\/standalone/);
+    if (match && match[1]) {
+      projectRoot = match[1];
+    } else {
+      projectRoot = path.resolve(projectRoot, '..', '..');
+    }
+  }
+
   const possiblePaths = [
-    path.join(process.cwd(), 'data', 'schedule-app.db'),
-    path.join(process.cwd(), '.next', 'standalone', 'data', 'schedule-app.db'),
+    path.join(projectRoot, 'db', 'schedule-app.db'),
+    '/opt/kspguti-schedule/db/schedule-app.db',
+    path.join(process.cwd(), 'db', 'schedule-app.db'),
+    path.join(process.cwd(), '.next', 'standalone', 'db', 'schedule-app.db'),
+    '/opt/kspguti-schedule/.next/standalone/db/schedule-app.db',
+    // Старые пути для обратной совместимости
+    path.join(projectRoot, 'data', 'schedule-app.db'),
     '/opt/kspguti-schedule/data/schedule-app.db',
-    '/opt/kspguti-schedule/.next/standalone/data/schedule-app.db',
   ];
 
   for (const dbPath of possiblePaths) {
@@ -56,10 +71,22 @@ async function main() {
   if (!dbPath) {
     console.error('❌ Ошибка: База данных не найдена!');
     console.log('\nИскали в следующих местах:');
-    console.log('  - ' + path.join(process.cwd(), 'data', 'schedule-app.db'));
-    console.log('  - ' + path.join(process.cwd(), '.next', 'standalone', 'data', 'schedule-app.db'));
-    console.log('  - /opt/kspguti-schedule/data/schedule-app.db');
-    console.log('  - /opt/kspguti-schedule/.next/standalone/data/schedule-app.db');
+    
+    // Определяем корень проекта для отображения
+    let projectRoot = process.cwd();
+    if (projectRoot.includes('.next/standalone')) {
+      const match = projectRoot.match(/^(.+?)\/\.next\/standalone/);
+      if (match && match[1]) {
+        projectRoot = match[1];
+      } else {
+        projectRoot = path.resolve(projectRoot, '..', '..');
+      }
+    }
+    
+    console.log('  - ' + path.join(projectRoot, 'db', 'schedule-app.db'));
+    console.log('  - /opt/kspguti-schedule/db/schedule-app.db');
+    console.log('  - ' + path.join(process.cwd(), 'db', 'schedule-app.db'));
+    console.log('\n💡 Подсказка: База данных должна находиться в папке db/ в корне проекта');
     process.exit(1);
   }
 
