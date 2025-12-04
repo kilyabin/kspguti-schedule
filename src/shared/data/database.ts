@@ -5,14 +5,83 @@ import bcrypt from 'bcrypt'
 import type { GroupInfo, GroupsData } from './groups-loader'
 import type { AppSettings } from './settings-loader'
 
-// Путь к файлу базы данных
-const DB_PATH = path.join(process.cwd(), 'data', 'schedule-app.db')
+// Определяем корень проекта для хранения базы данных
+function getDatabaseDir(): string {
+  // Если указан путь через переменную окружения, используем его
+  if (process.env.DATABASE_DIR) {
+    return process.env.DATABASE_DIR
+  }
+  
+  // В production режиме (standalone) используем стандартный путь
+  const cwd = process.cwd()
+  
+  // Если мы в .next/standalone, поднимаемся на 2 уровня вверх к корню проекта
+  if (cwd.includes('.next/standalone')) {
+    // В standalone режиме process.cwd() = /opt/kspguti-schedule/.next/standalone
+    // Нужно подняться до /opt/kspguti-schedule
+    const standaloneMatch = cwd.match(/^(.+?)\/\.next\/standalone/)
+    if (standaloneMatch && standaloneMatch[1]) {
+      return standaloneMatch[1]
+    }
+    // Альтернативный способ: подняться на 2 уровня вверх
+    return path.resolve(cwd, '..', '..')
+  }
+  
+  // Проверяем стандартный путь для production
+  if (fs.existsSync('/opt/kspguti-schedule')) {
+    return '/opt/kspguti-schedule'
+  }
+  
+  // В development используем текущую директорию
+  return cwd
+}
+
+// Путь к директории базы данных
+const DATABASE_DIR = getDatabaseDir()
+const DB_PATH = path.join(DATABASE_DIR, 'db', 'schedule-app.db')
 const DEFAULT_PASSWORD = 'ksadmin'
 
-// Создаем директорию data, если её нет
+// Путь к старой базе данных (для миграции)
+const OLD_DB_PATH = path.join(DATABASE_DIR, 'data', 'schedule-app.db')
+
+// Создаем директорию db, если её нет
 const dbDir = path.dirname(DB_PATH)
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true })
+}
+
+// Миграция базы данных из data/ в db/ (если старая база существует)
+function migrateDatabaseLocation(): void {
+  // Если новая база уже существует, миграция не нужна
+  if (fs.existsSync(DB_PATH)) {
+    return
+  }
+  
+  // Если старая база существует, перемещаем её
+  if (fs.existsSync(OLD_DB_PATH)) {
+    try {
+      console.log('Migrating database from data/ to db/...')
+      fs.renameSync(OLD_DB_PATH, DB_PATH)
+      
+      // Также перемещаем вспомогательные файлы SQLite (WAL mode)
+      const oldShmPath = OLD_DB_PATH + '-shm'
+      const oldWalPath = OLD_DB_PATH + '-wal'
+      const newShmPath = DB_PATH + '-shm'
+      const newWalPath = DB_PATH + '-wal'
+      
+      if (fs.existsSync(oldShmPath)) {
+        fs.renameSync(oldShmPath, newShmPath)
+      }
+      if (fs.existsSync(oldWalPath)) {
+        fs.renameSync(oldWalPath, newWalPath)
+      }
+      
+      console.log('Database successfully migrated to db/ directory')
+    } catch (error) {
+      console.error('Error migrating database:', error)
+      // Не падаем, просто продолжаем работу
+    }
+  }
 }
 
 // Инициализация базы данных
@@ -22,6 +91,9 @@ function getDatabase(): Database.Database {
   if (db) {
     return db
   }
+
+  // Выполняем миграцию расположения базы данных перед открытием
+  migrateDatabaseLocation()
 
   db = new Database(DB_PATH)
 
