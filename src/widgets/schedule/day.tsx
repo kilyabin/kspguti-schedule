@@ -4,8 +4,9 @@ import { getDayOfWeek } from '@/shared/utils'
 import { Lesson } from '@/widgets/schedule/lesson'
 import { cx } from 'class-variance-authority'
 
-export function Day({ day }: {
+export function Day({ day, hideTeacher = false }: {
   day: DayType
+  hideTeacher?: boolean
 }) {
   const dayOfWeek = [
     'Понедельник', 
@@ -53,6 +54,7 @@ export function Day({ day }: {
                 width={longNames ? 450 : 350}
                 lesson={lesson}
                 animationDelay={i * 0.08}
+                hideTeacher={hideTeacher}
               />
             ))}
             <div className='snap-start hidden md:block' style={{ flex: `0 0 calc(100vw - 4rem - ${longNames ? 450 : 350}px - 1rem)` }} />

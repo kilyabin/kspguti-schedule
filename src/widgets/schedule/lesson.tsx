@@ -22,10 +22,11 @@ import { BsFillGeoAltFill } from 'react-icons/bs'
 import { RiGroup2Fill } from 'react-icons/ri'
 import { ResourcesDialog } from '@/widgets/schedule/resources-dialog'
 
-export function Lesson({ lesson, width = 350, animationDelay }: {
+export function Lesson({ lesson, width = 350, animationDelay, hideTeacher = false }: {
   lesson: LessonType
   width: number
   animationDelay?: number
+  hideTeacher?: boolean
 }) {
   const [resourcesDialogOpened, setResourcesDialogOpened] = React.useState(false)
 
@@ -73,7 +74,7 @@ export function Lesson({ lesson, width = 350, animationDelay }: {
       {lesson.isChange && <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#ffc60026] to-[#95620026] pointer-events-none'></div>}
       <CardHeader>
         <div className='flex gap-2 md:gap-4'>
-          {hasTeacher ? (
+          {!hideTeacher && hasTeacher ? (
             <Avatar className="flex-shrink-0">
               <AvatarImage 
                 src={getTeacherPhoto(teacherObj?.picture)!} 
@@ -99,7 +100,7 @@ export function Lesson({ lesson, width = 350, animationDelay }: {
               {lesson.time.start} - {lesson.time.end}{
               }{lesson.time.hint && <span className='font-bold'>&nbsp;({lesson.time.hint})</span>}
             </CardDescription>
-            {!isCancelled && hasTeacher && lesson.teacher && (
+            {!hideTeacher && !isCancelled && hasTeacher && lesson.teacher && (
               <CardDescription className='text-xs md:text-sm font-medium break-words'>
                 {lesson.teacher}
               </CardDescription>

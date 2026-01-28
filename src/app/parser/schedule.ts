@@ -13,9 +13,32 @@ export type ParseResult = {
 }
 
 const dayTitleParser = (text: string) => {
-  const [dateString, week] = text.trim().split(' / ')
-  const weekNumber = Number(week.trim().match(/^(\d+) неделя$/)![1])
-  const [, day, month, year] = dateString.trim().match(/^[а-яА-Я]+ (\d{1,2})\.(\d{1,2})\.(\d{4})$/)!
+  const trimmed = text.trim()
+  // Поддерживаем оба формата: с пробелом " / " и без пробела "/"
+  const parts = trimmed.split(/\s*\/\s*/)
+  
+  if (parts.length < 2) {
+    throw new Error(`Invalid day title format: ${trimmed}`)
+  }
+  
+  const [dateString, week] = parts
+  if (!dateString || !week) {
+    throw new Error(`Invalid day title format: ${trimmed}`)
+  }
+  
+  const weekMatch = week.trim().match(/^(\d+)\s+неделя$/)
+  if (!weekMatch) {
+    throw new Error(`Invalid week format: ${week}`)
+  }
+  
+  const weekNumber = Number(weekMatch[1])
+  
+  const dateMatch = dateString.trim().match(/^[а-яА-Я]+ (\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+  if (!dateMatch) {
+    throw new Error(`Invalid date format: ${dateString}`)
+  }
+  
+  const [, day, month, year] = dateMatch
   const date = new Date(Number(year), Number(month) - 1, Number(day), 12)
   return { date, weekNumber }
 }
@@ -232,7 +255,7 @@ function parseWeekNavigation(document: Document, currentWeekNumber: number, curr
   return weeks.sort((a, b) => a.weekNumber - b.weekNumber)
 }
 
-const parseLesson = (row: Element): Lesson | null => {
+const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson | null => {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error
   const lesson: LessonObject = {}
@@ -242,34 +265,98 @@ const parseLesson = (row: Element): Lesson | null => {
     
     lesson.isChange = cells.every(td => td.getAttribute('bgcolor') === 'ffffbb')
     
+    // Проверяем наличие необходимых ячеек
+    if (cells.length < 4) {
+      // Для преподавателей может быть другая структура - проверяем минимум ячеек
+      if (cells.length < 2) {
+        return null
+      }
+    }
+    
+    // Для преподавателей ячейка с предметом может быть в другом индексе
+    const disciplineCellIndex = cells.length >= 4 ? 3 : (cells.length >= 3 ? 2 : 1)
+    const disciplineCell = cells[disciplineCellIndex]
+    
     // Пропускаем урок только если это НЕ замена И в ячейке "Свободное время"
-    if (!cells[3] || (!lesson.isChange && cells[3].textContent?.trim() === 'Свободное время')) return null
-
-    if (!cells[1] || !cells[1].childNodes[0]) {
+    if (disciplineCell && !lesson.isChange && disciplineCell.textContent?.trim() === 'Свободное время') {
       return null
     }
-    const timeCell = cells[1].childNodes
-    const timeText = timeCell[0].textContent?.trim()
+
+    // Проверяем наличие ячейки времени
+    if (!cells[1]) {
+      return null
+    }
+    
+    // Для времени может быть разная структура
+    let timeText = ''
+    if (cells[1].childNodes[0]) {
+      timeText = cells[1].childNodes[0].textContent?.trim() || ''
+    } else {
+      // Если нет childNodes, берем весь текст ячейки
+      timeText = cells[1].textContent?.trim() || ''
+    }
+    
     if (!timeText) {
       return null
     }
+    // Парсим время (уже извлечено выше)
     const [startTime, endTime] = timeText.split(' – ')
     lesson.time = {
       start: startTime ?? '',
       end: endTime ?? ''
     }
+    
+    // Пытаемся найти hint для времени
+    const timeCell = cells[1].childNodes
     if (timeCell[2]) {
       lesson.time.hint = timeCell[2].textContent?.trim()
     }
 
     try {
-      const disciplineCell = cells[3]
       if (!disciplineCell) {
         throw new Error('Discipline cell not found')
       }
 
-      const cellText = disciplineCell.textContent || ''
-      const cellHTML = disciplineCell.innerHTML || ''
+      let cellText = disciplineCell.textContent || ''
+      let cellHTML = disciplineCell.innerHTML || ''
+      
+      // Для преподавателей данные могут быть в другой ячейке или в объединенной ячейке
+      // Если ячейка пустая, проверяем другие ячейки
+      if (!cellText && !cellHTML && cells.length > disciplineCellIndex) {
+        // Пробуем следующую ячейку
+        for (let i = disciplineCellIndex + 1; i < cells.length; i++) {
+          const altCell = cells[i]
+          const altText = altCell.textContent?.trim() || ''
+          const altHTML = altCell.innerHTML?.trim() || ''
+          if (altText || altHTML) {
+            cellText = altText
+            cellHTML = altHTML
+            break
+          }
+        }
+      }
+      
+      // Если все еще пусто, пробуем объединенную ячейку (может быть в первой ячейке)
+      if (!cellText && !cellHTML && cells.length > 0) {
+        const firstCell = cells[0]
+        const firstText = firstCell.textContent?.trim() || ''
+        // Проверяем, содержит ли первая ячейка данные об уроке (длинный текст)
+        if (firstText.length > 20 && /[А-ЯЁа-яё]/.test(firstText)) {
+          cellText = firstText
+          cellHTML = firstCell.innerHTML?.trim() || ''
+        }
+      }
+      
+      // Для преподавателей может быть другая структура - проверяем наличие данных
+      if (!cellText && !cellHTML) {
+        // Вместо ошибки, используем fallback
+        const allText = row.textContent?.trim() || ''
+        if (allText && allText.length > 10) {
+          cellText = allText
+        } else {
+          throw new Error('Discipline cell is empty')
+        }
+      }
       
       // Проверяем, является ли это заменой "Свободное время" на пару
       const isFreeTimeReplacement = lesson.isChange && 
@@ -307,18 +394,20 @@ const parseLesson = (row: Element): Lesson | null => {
               const secondBrEnd = afterFirstBr.indexOf('>', secondBrIndex) + 1
               const afterSecondBr = afterFirstBr.substring(secondBrEnd)
               
-              const fontIndex = afterSecondBr.indexOf('<font')
-              if (fontIndex !== -1) {
-                const teacherHTML = afterSecondBr.substring(0, fontIndex)
-                lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
-              } else {
-                // Если нет <font>, преподаватель может быть до следующего <br> или до конца
-                const thirdBrIndex = afterSecondBr.indexOf('<br')
-                if (thirdBrIndex !== -1) {
-                  const teacherHTML = afterSecondBr.substring(0, thirdBrIndex)
+              if (!isTeacherSchedule) {
+                const fontIndex = afterSecondBr.indexOf('<font')
+                if (fontIndex !== -1) {
+                  const teacherHTML = afterSecondBr.substring(0, fontIndex)
                   lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
                 } else {
-                  lesson.teacher = afterSecondBr.replace(/<[^>]+>/g, '').trim()
+                  // Если нет <font>, преподаватель может быть до следующего <br> или до конца
+                  const thirdBrIndex = afterSecondBr.indexOf('<br')
+                  if (thirdBrIndex !== -1) {
+                    const teacherHTML = afterSecondBr.substring(0, thirdBrIndex)
+                    lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
+                  } else {
+                    lesson.teacher = afterSecondBr.replace(/<[^>]+>/g, '').trim()
+                  }
                 }
               }
             } else {
@@ -339,7 +428,7 @@ const parseLesson = (row: Element): Lesson | null => {
             const fontContent = fontMatch[1]
             // Ищем паттерн: <br> адрес <br> Кабинет: номер
             // Сначала убираем все теги и разбиваем по <br>
-            const cleanContent = fontContent.replace(/<[^>]+>/g, '|').split('|').filter(p => p.trim())
+            const cleanContent = fontContent.replace(/<[^>]+>/g, '|').split('|').filter((p: string) => p.trim())
             // Ищем адрес (первая непустая часть) и кабинет (часть с "Кабинет:")
             for (let i = 0; i < cleanContent.length; i++) {
               const part = cleanContent[i].trim()
@@ -392,18 +481,20 @@ const parseLesson = (row: Element): Lesson | null => {
               const secondBrEnd = afterFirstBr.indexOf('>', secondBrIndex) + 1
               const afterSecondBr = afterFirstBr.substring(secondBrEnd)
               
-              const fontIndex = afterSecondBr.indexOf('<font')
-              if (fontIndex !== -1) {
-                const teacherHTML = afterSecondBr.substring(0, fontIndex)
-                lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
-              } else {
-                // Если нет <font>, преподаватель может быть до следующего <br> или до конца
-                const thirdBrIndex = afterSecondBr.indexOf('<br')
-                if (thirdBrIndex !== -1) {
-                  const teacherHTML = afterSecondBr.substring(0, thirdBrIndex)
+              if (!isTeacherSchedule) {
+                const fontIndex = afterSecondBr.indexOf('<font')
+                if (fontIndex !== -1) {
+                  const teacherHTML = afterSecondBr.substring(0, fontIndex)
                   lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
                 } else {
-                  lesson.teacher = afterSecondBr.replace(/<[^>]+>/g, '').trim()
+                  // Если нет <font>, преподаватель может быть до следующего <br> или до конца
+                  const thirdBrIndex = afterSecondBr.indexOf('<br')
+                  if (thirdBrIndex !== -1) {
+                    const teacherHTML = afterSecondBr.substring(0, thirdBrIndex)
+                    lesson.teacher = teacherHTML.replace(/<[^>]+>/g, '').trim()
+                  } else {
+                    lesson.teacher = afterSecondBr.replace(/<[^>]+>/g, '').trim()
+                  }
                 }
               }
             } else {
@@ -424,7 +515,7 @@ const parseLesson = (row: Element): Lesson | null => {
             const fontContent = fontMatch[1]
             // Ищем паттерн: <br> адрес <br> Кабинет: номер
             // Сначала убираем все теги и разбиваем по <br>
-            const cleanContent = fontContent.replace(/<[^>]+>/g, '|').split('|').filter(p => p.trim())
+            const cleanContent = fontContent.replace(/<[^>]+>/g, '|').split('|').filter((p: string) => p.trim())
             // Ищем адрес (первая непустая часть) и кабинет (часть с "Кабинет:")
             for (let i = 0; i < cleanContent.length; i++) {
               const part = cleanContent[i].trim()
@@ -453,16 +544,66 @@ const parseLesson = (row: Element): Lesson | null => {
         }
       } else {
         // Обычный парсинг для нормальных пар
-        if (!disciplineCell.childNodes[0]) {
-          throw new Error('Subject node not found')
+        // Для преподавателей структура может отличаться - пробуем разные варианты
+        let subjectText = ''
+        
+        // Вариант 1: первый childNode (как для групп)
+        if (disciplineCell.childNodes[0]) {
+          subjectText = disciplineCell.childNodes[0].textContent?.trim() || ''
         }
-        lesson.subject = disciplineCell.childNodes[0].textContent!.trim()
-
-        const teacherCell = disciplineCell.childNodes[2]
-        if (teacherCell) {
-          lesson.teacher = teacherCell.textContent!.trim()
+        
+        // Вариант 2: если первый childNode пустой, берем весь текст ячейки и извлекаем предмет
+        if (!subjectText || subjectText.length === 0) {
+          const fullText = cellText || disciplineCell.innerHTML?.trim() || ''
+          // Для преподавателей формат может быть: "ПредметГруппа(Аудитория)Адрес"
+          // Пример: "Теория вероятностей и математическая статистикаАндрющенко А.В.(ИСПВ-9)Моско"
+          // Извлекаем: "Теория вероятностей и математическая статистика"
+          if (fullText) {
+            // Паттерн 1: "Предмет[ФИО](Группа)Адрес"
+            // Ищем группу в скобках и извлекаем текст до неё
+            const groupMatch = fullText.match(/^([А-ЯЁа-яё\s]+?)(?:[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.)?(\([^)]+\))/)
+            if (groupMatch) {
+              subjectText = groupMatch[1].trim()
+            } else {
+              // Паттерн 2: "Предмет(Группа)Адрес" - без ФИО
+              const groupPatternMatch = fullText.match(/^([А-ЯЁа-яё\s]+?)(\([А-ЯЁ]+-\d+[к]?\))/)
+              if (groupPatternMatch) {
+                subjectText = groupPatternMatch[1].trim()
+              } else {
+                // Паттерн 3: просто название предмета, но убираем возможные имена преподавателей и группы в конце
+                // Убираем ФИО в формате "Фамилия И.О." и группу в скобках
+                const cleanedText = fullText.replace(/\s*[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.\s*\([^)]+\)[А-ЯЁа-яё]*$/, '').trim()
+                // Если после очистки остался длинный текст (больше 10 символов), это предмет
+                if (cleanedText.length > 10) {
+                  subjectText = cleanedText
+                } else {
+                  subjectText = fullText
+                }
+              }
+            }
+          }
+        }
+        
+        if (!subjectText || subjectText.length === 0) {
+          // Используем fallback - берем весь текст ячейки
+          const fallbackText = disciplineCell.textContent?.trim() || ''
+          if (fallbackText) {
+            lesson.fallbackDiscipline = fallbackText
+          } else {
+            throw new Error('Subject node not found')
+          }
+        } else {
+          lesson.subject = subjectText
         }
 
+        if (!isTeacherSchedule) {
+          const teacherCell = disciplineCell.childNodes[2]
+          if (teacherCell) {
+            lesson.teacher = teacherCell.textContent!.trim()
+          }
+        }
+
+        // Парсим место проведения
         const placeCell = disciplineCell.childNodes[3]
 
         if (placeCell && placeCell.childNodes.length > 0) {
@@ -478,6 +619,25 @@ const parseLesson = (row: Element): Lesson | null => {
               lesson.place = {
                 address,
                 classroom: classroomMatch[1]
+              }
+            }
+          }
+        } else if (isTeacherSchedule) {
+          // Для преподавателей место может быть в другом формате в тексте ячейки
+          // Формат: "ПредметГруппа(Аудитория)Адрес"
+          const fullText = disciplineCell.textContent?.trim() || ''
+          if (fullText) {
+            // Ищем паттерн: группа в скобках и адрес после
+            // Например: "(ИКС-8)Московское шоссе, 120" или "(ССА-15к)Моск"
+            const placeMatch = fullText.match(/\(([^)]+)\)([^(]+?)(?:\d+|$)/)
+            if (placeMatch) {
+              const classroom = placeMatch[1].trim()
+              const address = placeMatch[2].trim()
+              if (classroom && address) {
+                lesson.place = {
+                  address,
+                  classroom
+                }
               }
             }
           }
@@ -515,10 +675,108 @@ const parseLesson = (row: Element): Lesson | null => {
   }
 }
 
-export function parsePage(document: Document, groupName: string, url?: string, shouldParseWeekNavigation: boolean = true): ParseResult {
+export function parsePage(document: Document, groupName: string, url?: string, shouldParseWeekNavigation: boolean = true, isTeacherSchedule: boolean = false): ParseResult {
   const tables = Array.from(document.querySelectorAll('body > table'))
-  const table = tables.find(table => table.querySelector(':scope > tbody > tr:first-child')?.textContent?.trim() === groupName)
-  const rows = Array.from(table!.children[0].children).filter(el => el.tagName === 'TR').slice(2)
+  
+  // Пытаемся найти таблицу разными способами
+  let table: Element | undefined
+  
+  // Для расписания преподавателей приоритет - таблица с признаками расписания, а не список имен
+  if (isTeacherSchedule) {
+    // Способ 1: Ищем таблицу с признаками расписания (дни недели с датами, время пар)
+    table = tables.find(table => {
+      const tableText = table.textContent || ''
+      // Проверяем наличие заголовков дней с датами и номерами недель
+      const hasDayTitles = /(Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}\s*\/\s*\d+\s+неделя/i.test(tableText)
+      // Проверяем наличие времени пар
+      const hasTimeSlots = /\d{1,2}:\d{2}\s*–\s*\d{1,2}:\d{2}/.test(tableText)
+      // НЕ должно быть списка имен преподавателей (много строк с ФИО подряд)
+      const hasManyNames = (tableText.match(/[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+/g) || []).length > 20
+      return (hasDayTitles || hasTimeSlots) && !hasManyNames
+    })
+    
+    // Способ 2: Если не нашли, ищем таблицу по имени в первой строке (может быть заголовок)
+    if (!table) {
+      table = tables.find(table => {
+        const firstRow = table.querySelector(':scope > tbody > tr:first-child')
+        return firstRow?.textContent?.trim() === groupName
+      })
+    }
+  } else {
+    // Для групп: ищем по имени в первой строке
+    table = tables.find(table => {
+      const firstRow = table.querySelector(':scope > tbody > tr:first-child')
+      return firstRow?.textContent?.trim() === groupName
+    })
+  }
+  
+  // Способ 3: Если не нашли, ищем таблицу, которая содержит имя где-то внутри
+  if (!table) {
+    table = tables.find(table => {
+      const tableText = table.textContent || ''
+      // Проверяем, содержит ли таблица имя (может быть в заголовке или в первой строке)
+      return tableText.includes(groupName)
+    })
+  }
+  
+  // Способ 4: Если все еще не нашли, берем первую таблицу с расписанием (содержит заголовки дней)
+  if (!table && tables.length > 0) {
+    table = tables.find(table => {
+      const tableText = table.textContent || ''
+      // Проверяем наличие признаков расписания (дни недели, время пар)
+      return /Понедельник|Вторник|Среда|Четверг|Пятница|Суббота/.test(tableText) ||
+             /\d{1,2}:\d{2}\s*–\s*\d{1,2}:\d{2}/.test(tableText)
+    })
+  }
+  
+  // Способ 5: Если ничего не помогло, берем самую большую таблицу (обычно это расписание)
+  if (!table && tables.length > 0) {
+    table = tables.reduce((largest, current) => {
+      const largestRows = largest.querySelectorAll('tr').length
+      const currentRows = current.querySelectorAll('tr').length
+      return currentRows > largestRows ? current : largest
+    })
+  }
+  
+  if (!table) {
+    // Логируем информацию о найденных таблицах для отладки
+    console.log(`[parsePage] Found ${tables.length} tables, analyzing...`)
+    tables.forEach((t, i) => {
+      const text = t.textContent?.substring(0, 200) || ''
+      const hasDayTitles = /(Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}/i.test(text)
+      const hasTimeSlots = /\d{1,2}:\d{2}\s*–\s*\d{1,2}:\d{2}/.test(text)
+      const nameCount = (text.match(/[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+/g) || []).length
+      console.log(`[parsePage] Table ${i}: rows=${t.querySelectorAll('tr').length}, hasDayTitles=${hasDayTitles}, hasTimeSlots=${hasTimeSlots}, nameCount=${nameCount}, preview="${text}"`)
+    })
+    throw new Error(`Table not found for ${groupName}. Found ${tables.length} tables on the page.`)
+  }
+  
+  console.log(`[parsePage] Selected table with ${table.querySelectorAll('tr').length} rows`)
+  
+  // Пытаемся найти tbody или использовать прямые children таблицы
+  let tbody: HTMLTableSectionElement | null = null
+  if (table) {
+    const tbodyElement = table.querySelector('tbody')
+    if (tbodyElement) {
+      tbody = tbodyElement as HTMLTableSectionElement
+    } else if (table.children.length > 0 && table.children[0].tagName === 'TBODY') {
+      tbody = table.children[0] as HTMLTableSectionElement
+    }
+    
+    if (!tbody && table.children.length === 0) {
+      throw new Error(`Table structure is invalid for ${groupName}`)
+    }
+  }
+  
+  // Получаем строки из tbody или напрямую из таблицы
+  const allRows = tbody 
+    ? Array.from(tbody.querySelectorAll('tr'))
+    : Array.from(table.querySelectorAll('tr'))
+  
+  const rows = allRows.slice(2)
+  
+  console.log(`[parsePage] Found ${rows.length} rows to parse for ${groupName}`)
+  console.log(`[parsePage] First few rows text:`, rows.slice(0, 5).map(r => r.textContent?.trim().substring(0, 50)))
 
   const days = []
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -535,35 +793,136 @@ export function parsePage(document: Document, groupName: string, url?: string, s
   
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
+    const rowText = row.textContent?.trim() || ''
 
-    const isDivider = row.textContent?.trim() === ''
-    const isDayTitle = dayLessons.length === 0 && !('date' in dayInfo)
+    const isDivider = rowText === ''
+    // Проверяем, является ли строка заголовком дня: должна содержать паттерн "день недели дата / номер неделя"
+    // Поддерживаем оба формата: с пробелом и без пробела перед "/"
+    const looksLikeDayTitle = /(Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}\s*\/\s*\d+\s+неделя/i.test(rowText)
+    // Заголовок дня может быть в любой момент - либо когда нет дня, либо когда начинается новый день
+    const isDayTitle = looksLikeDayTitle
+    // Если уже есть день с датой и встречаем новый заголовок дня, сохраняем предыдущий день
+    const isNewDayTitle = looksLikeDayTitle && ('date' in dayInfo)
     const isTableHeader = previousRowIsDayTitle
 
-    if (isDivider) {
+    // Если встречаем новый день, сохраняем предыдущий
+    if (isNewDayTitle && 'date' in dayInfo) {
       days.push({ ...dayInfo, lessons: dayLessons })
       dayLessons = []
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       dayInfo = {}
       previousRowIsDayTitle = false
+    }
+
+    if (isDivider) {
+      // Сохраняем день при разделителе, только если есть данные
+      if ('date' in dayInfo) {
+        days.push({ ...dayInfo, lessons: dayLessons })
+        dayLessons = []
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        dayInfo = {}
+      }
+      previousRowIsDayTitle = false
     } else if (isTableHeader) {
+      // После заголовка дня идет строка заголовков таблицы - пропускаем её
+      // НО dayInfo должен сохраниться для следующих строк!
       previousRowIsDayTitle = false
       continue
     } else if (isDayTitle) {
-      const { date, weekNumber } = dayTitleParser(row.querySelector('h3')!.textContent!)
-      dayInfo.date = date
-      dayInfo.weekNumber = weekNumber
-      if (!currentWeekNumber) {
-        currentWeekNumber = weekNumber
+      // Пытаемся найти заголовок дня в разных форматах
+      const h3Element = row.querySelector('h3')
+      let dayTitleText = h3Element?.textContent?.trim() || row.textContent?.trim() || ''
+      
+      // Извлекаем только часть до переноса строки или до начала следующего контента
+      // Заголовок дня может быть в начале строки, а дальше идет другой контент
+      const dayTitleMatch = dayTitleText.match(/((Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}\s*\/\s*\d+\s+неделя)/i)
+      if (dayTitleMatch) {
+        dayTitleText = dayTitleMatch[1]
       }
-      previousRowIsDayTitle = true
+      
+      if (!dayTitleText) {
+        // Пропускаем строку, если не можем найти заголовок
+        continue
+      }
+      
+      try {
+        const { date, weekNumber } = dayTitleParser(dayTitleText)
+        console.log(`[parsePage] Parsed day title: ${dayTitleText} -> date: ${date}, week: ${weekNumber}`)
+        dayInfo.date = date
+        dayInfo.weekNumber = weekNumber
+        if (!currentWeekNumber) {
+          currentWeekNumber = weekNumber
+        }
+        previousRowIsDayTitle = true
+        // Важно: после парсинга заголовка дня, следующий цикл должен обрабатывать уроки
+        // Поэтому НЕ делаем continue, а просто устанавливаем флаг
+        // Проверяем, что dayInfo действительно установлен
+        console.log(`[parsePage] Day info set: date=${dayInfo.date}, weekNumber=${dayInfo.weekNumber}`)
+      } catch (error) {
+        // Если не удалось распарсить заголовок, пропускаем строку
+        console.warn(`[parsePage] Failed to parse day title: ${dayTitleText}`, error)
+        continue
+      }
     } else {
-      const lesson = parseLesson(row)
-      if(lesson !== null)
-        dayLessons.push(lesson)
+      // Пытаемся распарсить как урок, только если уже есть день
+      const hasDayContext = 'date' in dayInfo
+      if (hasDayContext) {
+        // Пропускаем строки, которые являются только номерами пар или временем (заголовки столбцов)
+        const cells = Array.from(row.querySelectorAll(':scope > td'))
+        const cellTexts = cells.map(cell => cell.textContent?.trim() || '').filter(t => t)
+        
+        // Для преподавателей данные могут быть в одной ячейке в формате "номер\nвремя\n\nпредмет..."
+        // Проверяем, есть ли в строке данные об уроке
+        const hasLessonData = cellTexts.some(text => {
+          // Проверяем наличие предмета (длинный текст с русскими буквами)
+          return text.length > 20 && /[А-ЯЁа-яё]/.test(text) && !/^\d+$/.test(text) && !/^\d{1,2}:\d{2}\s*–\s*\d{1,2}:\d{2}$/.test(text)
+        })
+        
+        // Если строка содержит только номер пары и время (например, "1\n08:00 – 09:30"), пропускаем её
+        // Но если есть данные об уроке, не пропускаем
+        if (cells.length <= 2 && cellTexts.length <= 2 && !hasLessonData) {
+          const isTimeSlotRow = cellTexts.some(text => /^\d+$/.test(text) || /\d{1,2}:\d{2}\s*–\s*\d{1,2}:\d{2}/.test(text))
+          if (isTimeSlotRow) {
+            continue
+          }
+        }
+        
+        const lesson = parseLesson(row, isTeacherSchedule)
+        if(lesson !== null) {
+          let lessonName = 'unknown'
+          if ('subject' in lesson && lesson.subject) {
+            lessonName = lesson.subject
+          } else if ('fallbackDiscipline' in lesson && lesson.fallbackDiscipline) {
+            lessonName = lesson.fallbackDiscipline
+          }
+          console.log(`[parsePage] Parsed lesson: ${lessonName}`)
+          dayLessons.push(lesson)
+        } else {
+          // Логируем строки, которые не распарсились как уроки
+          console.log(`[parsePage] Failed to parse lesson from row: ${rowText.substring(0, 100)}`)
+        }
+      } else {
+        // Логируем строки, которые не распознаются как дни и не парсятся как уроки
+        // Но только если это не пустая строка и не заголовок дня
+        if (rowText && !looksLikeDayTitle) {
+          const cells = Array.from(row.querySelectorAll(':scope > td'))
+          if (cells.length > 0) {
+            console.log(`[parsePage] Skipping row (no day context): ${rowText.substring(0, 100)}`)
+          }
+        }
+      }
     }
   }
+  
+  // Добавляем последний день, если он не был добавлен
+  if ('date' in dayInfo) {
+    console.log(`[parsePage] Adding final day with ${dayLessons.length} lessons`)
+    days.push({ ...dayInfo, lessons: dayLessons })
+  }
+  
+  console.log(`[parsePage] Total days parsed: ${days.length}`)
 
   // Парсим навигацию по неделям только если включена навигация
   let availableWeeks: WeekInfo[] | undefined

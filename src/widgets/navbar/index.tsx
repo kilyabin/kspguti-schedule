@@ -12,9 +12,10 @@ import { NavContext, NavContextProvider } from '@/shared/context/nav-context'
 import { GITHUB_REPO_URL } from '@/shared/constants/urls'
 import { GroupsData } from '@/shared/data/groups-loader'
 
-export function NavBar({ cacheAvailableFor, groups }: {
+export function NavBar({ cacheAvailableFor, groups, isTeacherPage = false }: {
   cacheAvailableFor: string[]
   groups: GroupsData
+  isTeacherPage?: boolean
 }) {
   const { resolvedTheme } = useTheme()
   // Используем состояние для предотвращения проблем с гидратацией
@@ -34,14 +35,14 @@ export function NavBar({ cacheAvailableFor, groups }: {
           <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
             <ul className="flex gap-2 flex-nowrap">
               <li className="flex-shrink-0">
-                <Link href="/">
+                <Link href={isTeacherPage ? "/teachers" : "/"}>
                   <Button 
                     variant="secondary" 
                     className="min-h-[44px] whitespace-nowrap gap-2"
                     tabIndex={-1}
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    <span>К группам</span>
+                    <span>{isTeacherPage ? "К преподавателям" : "К группам"}</span>
                   </Button>
                 </Link>
               </li>

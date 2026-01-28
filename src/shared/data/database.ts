@@ -143,6 +143,15 @@ function initializeTables(): void {
       password_hash TEXT NOT NULL
     )
   `)
+
+  // Таблица преподавателей
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS teachers (
+      id TEXT PRIMARY KEY,
+      parseId INTEGER NOT NULL,
+      name TEXT NOT NULL
+    )
+  `)
 }
 
 // ==================== Функции для работы с группами ====================
@@ -215,6 +224,128 @@ export function updateGroup(id: string, group: Partial<GroupInfo>): void {
 export function deleteGroup(id: string): void {
   const database = getDatabase()
   database.prepare('DELETE FROM groups WHERE id = ?').run(id)
+}
+
+// ==================== Функции для работы с преподавателями ====================
+
+export type TeacherInfo = {
+  parseId: number
+  name: string
+}
+
+export type TeachersData = { [teacherId: string]: TeacherInfo }
+
+export function getAllTeachers(): TeachersData {
+  const database = getDatabase()
+  const rows = database.prepare('SELECT id, parseId, name FROM teachers').all() as Array<{
+    id: string
+    parseId: number
+    name: string
+  }>
+
+  const teachers: TeachersData = {}
+  for (const row of rows) {
+    teachers[row.id] = {
+      parseId: row.parseId,
+      name: row.name
+    }
+  }
+
+  return teachers
+}
+
+export function getTeacher(id: string): TeacherInfo | null {
+  const database = getDatabase()
+  const row = database.prepare('SELECT parseId, name FROM teachers WHERE id = ?').get(id) as {
+    parseId: number
+    name: string
+  } | undefined
+
+  if (!row) {
+    return null
+  }
+
+  return {
+    parseId: row.parseId,
+    name: row.name
+  }
+}
+
+export function getTeacherByParseId(parseId: number): { id: string; name: string } | null {
+  const database = getDatabase()
+  const row = database.prepare('SELECT id, name FROM teachers WHERE parseId = ?').get(parseId) as {
+    id: string
+    name: string
+  } | undefined
+
+  if (!row) {
+    return null
+  }
+
+  return {
+    id: row.id,
+    name: row.name
+  }
+}
+
+export function createTeacher(id: string, teacher: TeacherInfo): void {
+  const database = getDatabase()
+  database
+    .prepare('INSERT INTO teachers (id, parseId, name) VALUES (?, ?, ?)')
+    .run(id, teacher.parseId, teacher.name)
+}
+
+export function updateTeacher(id: string, teacher: Partial<TeacherInfo>): void {
+  const database = getDatabase()
+  const existing = getTeacher(id)
+  if (!existing) {
+    throw new Error(`Teacher with id ${id} not found`)
+  }
+
+  const updated: TeacherInfo = {
+    parseId: teacher.parseId !== undefined ? teacher.parseId : existing.parseId,
+    name: teacher.name !== undefined ? teacher.name : existing.name
+  }
+
+  database
+    .prepare('UPDATE teachers SET parseId = ?, name = ? WHERE id = ?')
+    .run(updated.parseId, updated.name, id)
+}
+
+export function deleteTeacher(id: string): void {
+  const database = getDatabase()
+  database.prepare('DELETE FROM teachers WHERE id = ?').run(id)
+}
+
+/**
+ * Получает timestamp последнего обновления списка преподавателей
+ */
+export function getTeachersLastUpdateTime(): number | null {
+  const database = getDatabase()
+  const row = database.prepare('SELECT value FROM settings WHERE key = ?').get('teachers_last_update') as {
+    value: string
+  } | undefined
+
+  if (!row) {
+    return null
+  }
+
+  try {
+    return Number(row.value)
+  } catch (error) {
+    console.error('Error parsing teachers last update time:', error)
+    return null
+  }
+}
+
+/**
+ * Сохраняет timestamp последнего обновления списка преподавателей
+ */
+export function setTeachersLastUpdateTime(timestamp: number): void {
+  const database = getDatabase()
+  database
+    .prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
+    .run('teachers_last_update', String(timestamp))
 }
 
 // ==================== Функции для работы с настройками ====================

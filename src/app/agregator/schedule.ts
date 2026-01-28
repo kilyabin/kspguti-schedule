@@ -136,3 +136,122 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
     throw error
   }
 }
+
+export async function getTeacherSchedule(teacherID: number, teacherName: string, wk?: number, parseWeekNavigation: boolean = true): Promise<ScheduleResult> {
+  // Валидация параметров
+  if (!Number.isInteger(teacherID) || teacherID <= 0) {
+    throw new Error('Invalid teacherID: must be a positive integer')
+  }
+  
+  if (wk !== undefined && (!Number.isInteger(wk) || wk <= 0 || !isFinite(wk))) {
+    throw new Error('Invalid wk parameter: must be a positive integer')
+  }
+  
+  const url = `${PROXY_URL}/?mn=3&obj=${teacherID}${wk ? `&wk=${wk}` : ''}`
+  
+  // Добавляем таймаут 8 секунд для fetch запроса
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 секунд
+  
+  try {
+    const page = await fetch(url, { signal: controller.signal })
+    clearTimeout(timeoutId)
+    const content = await page.text()
+    const contentType = page.headers.get('content-type')
+    if (page.status === 200 && contentType && contentTypeParser.parse(contentType).type === 'text/html') {
+      let dom: JSDOM | null = null
+      try {
+        dom = new JSDOM(content, { url })
+        const root = dom.window.document
+        const result = parsePage(root, teacherName, url, parseWeekNavigation, true)
+        const scheduleResult = {
+          days: result.days,
+          currentWk: result.currentWk || wk,
+          availableWeeks: result.availableWeeks
+        }
+        // Явно очищаем JSDOM для освобождения памяти
+        dom.window.close()
+        dom = null
+        return scheduleResult
+      } catch(e) {
+        // Очищаем JSDOM даже в случае ошибки
+        if (dom) {
+          dom.window.close()
+        }
+        console.error(`Error while parsing ${PROXY_URL}`)
+        const error = e instanceof Error ? e : new Error(String(e))
+        logErrorToFile(error, {
+          type: 'parsing_error',
+          teacherName,
+          url,
+          teacherID
+        })
+        reportParserError(new Date().toISOString(), 'Не удалось сделать парсинг для преподавателя', teacherName)
+        throw e
+      }
+    } else {
+      // Логируем только метаданные, без содержимого ответа
+      console.error(`Failed to fetch schedule: status=${page.status}, contentType=${contentType}, contentLength=${content.length}`)
+      const error = new Error(`Error while fetching ${PROXY_URL}: status ${page.status}`)
+      logErrorToFile(error, {
+        type: 'fetch_error',
+        teacherName,
+        url,
+        teacherID,
+        status: page.status,
+        contentType
+      })
+      reportParserError(new Date().toISOString(), 'Не удалось получить страницу для преподавателя', teacherName)
+      throw error
+    }
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      const timeoutError = new ScheduleTimeoutError(`Request timeout while fetching ${PROXY_URL}`)
+      logErrorToFile(timeoutError, {
+        type: 'timeout_error',
+        teacherName,
+        url,
+        teacherID
+      })
+      throw timeoutError
+    }
+    // Улучшенная обработка сетевых ошибок для диагностики
+    const errorObj = error instanceof Error ? error : new Error(String(error))
+    if (errorObj && 'cause' in errorObj && errorObj.cause instanceof Error) {
+      const networkError = errorObj.cause as Error & { code?: string }
+      if (networkError.code === 'ECONNRESET' || networkError.code === 'ECONNREFUSED' || networkError.code === 'ETIMEDOUT') {
+        console.error(`Network error while fetching ${PROXY_URL}:`, {
+          code: networkError.code,
+          message: networkError.message,
+          url
+        })
+        logErrorToFile(errorObj, {
+          type: 'network_error',
+          teacherName,
+          url,
+          teacherID,
+          networkErrorCode: networkError.code,
+          networkErrorMessage: networkError.message
+        })
+      } else {
+        // Логируем другие ошибки тоже
+        logErrorToFile(errorObj, {
+          type: 'unknown_error',
+          teacherName,
+          url,
+          teacherID
+        })
+      }
+    } else {
+      // Логируем ошибки без cause
+      logErrorToFile(errorObj, {
+        type: 'unknown_error',
+        teacherName,
+        url,
+        teacherID
+      })
+    }
+    throw error
+  }
+}

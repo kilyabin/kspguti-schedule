@@ -18,7 +18,8 @@ export function Schedule({
   weekNavigationEnabled = true,
   isFromCache,
   cacheAge,
-  cacheInfo
+  cacheInfo,
+  hideTeacher = false
 }: {
   days: DayType[]
   currentWk: number | null | undefined
@@ -30,6 +31,7 @@ export function Schedule({
     size: number
     entries: number
   }
+  hideTeacher?: boolean
 }) {
   const group = useRouter().query['group']
   const hasScrolledRef = React.useRef(false)
@@ -223,7 +225,7 @@ export function Schedule({
               animationDelay: `${i * 0.1}s`,
             } as React.CSSProperties}
           >
-            <Day day={day} />
+            <Day day={day} hideTeacher={hideTeacher} />
           </div>
         ))
       )}
