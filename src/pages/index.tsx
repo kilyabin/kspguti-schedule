@@ -235,10 +235,20 @@ export default function HomePage(props: HomePageProps) {
           )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+            <div
+              className="stagger-card"
+              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
+            >
+              <Link href="/teachers">
+                <Button variant="secondary" className="gap-2">
+                  Преподаватели
+                </Button>
+              </Link>
+            </div>
             {showAddGroupButton && (
               <div
                 className="stagger-card"
-                style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
+                style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.08}s` } as React.CSSProperties}
               >
                 <Button
                   variant="secondary"
@@ -252,13 +262,13 @@ export default function HomePage(props: HomePageProps) {
             )}
             <div
               className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.08 : 0.05)}s` } as React.CSSProperties}
+              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.11 : 0.08)}s` } as React.CSSProperties}
             >
               <ThemeSwitcher />
             </div>
             <div
               className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.11 : 0.08)}s` } as React.CSSProperties}
+              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.14 : 0.11)}s` } as React.CSSProperties}
             >
               <Link href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" className="gap-2">
