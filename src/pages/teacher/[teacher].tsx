@@ -15,7 +15,9 @@ import { getDayOfWeek } from '@/shared/utils'
 import Head from 'next/head'
 import { WeekInfo } from '@/app/parser/schedule'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shadcn/ui/card'
+import { Button } from '@/shadcn/ui/button'
 import { AlertCircle } from 'lucide-react'
+import Link from 'next/link'
 
 type PageProps = {
   schedule?: Day[]
@@ -99,9 +101,16 @@ export default function TeacherPage(props: NextSerialized<PageProps>) {
             <CardContent>
               <CardDescription className="text-base">
                 {error.isTimeout 
-                  ? 'Превышено время ожидания ответа от сервера. Пожалуйста, попробуйте обновить страницу через несколько минут.'
-                  : 'Произошла ошибка при загрузке расписания. Пожалуйста, попробуйте обновить страницу позже.'}
+                  ? 'Превышено время ожидания ответа от сервера при загрузке расписания преподавателя. Пожалуйста, попробуйте обновить страницу через несколько минут.'
+                  : `Не удалось загрузить расписание преподавателя ${teacher.name}. Возможно, расписание временно недоступно или произошла ошибка на сервере. Пожалуйста, попробуйте обновить страницу позже или вернитесь к списку преподавателей.`}
               </CardDescription>
+              <div className="mt-4">
+                <Link href="/teachers">
+                  <Button variant="outline" className="w-full sm:w-auto">
+                    Вернуться к списку преподавателей
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -284,35 +293,47 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
         } else {
           console.warn(`Schedule fetch error for teacher ${teacherInfo.name}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAge} minutes old)`)
         }
-      } else {
-        // Если кэша нет, возвращаем страницу с ошибкой вместо throw
-        const isTimeout = e instanceof ScheduleTimeoutError
-        const errorMessage = isTimeout 
-          ? 'Превышено время ожидания ответа от сервера'
-          : 'Произошла ошибка при загрузке расписания'
-        
-        console.error(`Schedule fetch failed for teacher ${teacherInfo.name}, no cache available:`, e)
-        
-        const cacheAvailableFor = Array.from(cachedTeacherSchedules.entries())
-          .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
-          .map(([k]) => k.split('_')[1]) // Берем parseId из ключа кэша
-        
-        return {
-          props: nextSerialized({
-            teacher: {
-              id: teacherInfo.id,
-              name: teacherInfo.name
-            },
-            cacheAvailableFor,
-            groups,
-            settings,
-            error: {
-              message: errorMessage,
-              isTimeout
-            }
-          }) as NextSerialized<PageProps>
+        } else {
+          // Если кэша нет, возвращаем страницу с ошибкой вместо throw
+          const isTimeout = e instanceof ScheduleTimeoutError
+          const errorMessageObj = e instanceof Error ? e : new Error(String(e))
+          const isSSLError = errorMessageObj.message?.includes('колледже что-то сломалось') || 
+                            errorMessageObj.message?.includes('SSL сертификата') || 
+                            errorMessageObj.message?.includes('self-signed certificate') ||
+                            errorMessageObj.message?.includes('certificate') ||
+                            (errorMessageObj.cause instanceof Error && (
+                              (errorMessageObj.cause as any).code === 'DEPTH_ZERO_SELF_SIGNED_CERT' ||
+                              errorMessageObj.cause.message?.includes('self-signed certificate')
+                            ))
+          
+          const errorMessage = isTimeout 
+            ? 'Превышено время ожидания ответа от сервера'
+            : isSSLError
+            ? 'В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.'
+            : errorMessageObj.message || 'Произошла ошибка при загрузке расписания'
+          
+          console.error(`Schedule fetch failed for teacher ${teacherInfo.name}, no cache available:`, e)
+          
+          const cacheAvailableFor = Array.from(cachedTeacherSchedules.entries())
+            .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
+            .map(([k]) => k.split('_')[1]) // Берем parseId из ключа кэша
+          
+          return {
+            props: nextSerialized({
+              teacher: {
+                id: teacherInfo.id,
+                name: teacherInfo.name
+              },
+              cacheAvailableFor,
+              groups,
+              settings,
+              error: {
+                message: errorMessage,
+                isTimeout
+              }
+            }) as NextSerialized<PageProps>
+          }
         }
-      }
     }
   }
   

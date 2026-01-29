@@ -96,10 +96,8 @@ export default function HomePage(props: NextSerialized<PageProps>) {
               </div>
             </CardHeader>
             <CardContent>
-              <CardDescription className="text-base">
-                {error.isTimeout 
-                  ? 'Превышено время ожидания ответа от сервера. Пожалуйста, попробуйте обновить страницу через несколько минут.'
-                  : 'Произошла ошибка при загрузке расписания. Пожалуйста, попробуйте обновить страницу позже.'}
+              <CardDescription className="text-base whitespace-pre-wrap">
+                {error?.message || 'Произошла ошибка при загрузке расписания'}
               </CardDescription>
             </CardContent>
           </Card>
@@ -270,11 +268,28 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
         } else {
           // Если кэша нет, возвращаем страницу с ошибкой вместо throw
           const isTimeout = e instanceof ScheduleTimeoutError
-          const errorMessage = isTimeout 
-            ? 'Превышено время ожидания ответа от сервера'
-            : 'Произошла ошибка при загрузке расписания'
+          const errorMessageObj = e instanceof Error ? e : new Error(String(e))
+          const isSSLError = errorMessageObj.message?.includes('колледже что-то сломалось') || 
+                            errorMessageObj.message?.includes('SSL сертификата') || 
+                            errorMessageObj.message?.includes('self-signed certificate') ||
+                            errorMessageObj.message?.includes('certificate') ||
+                            (errorMessageObj.cause instanceof Error && (
+                              (errorMessageObj.cause as any).code === 'DEPTH_ZERO_SELF_SIGNED_CERT' ||
+                              errorMessageObj.cause.message?.includes('self-signed certificate')
+                            ))
+          
+          // Если ошибка уже содержит нужное сообщение, используем его напрямую
+          let errorMessage: string
+          if (isTimeout) {
+            errorMessage = 'Превышено время ожидания ответа от сервера'
+          } else if (isSSLError || errorMessageObj.message?.includes('колледже что-то сломалось')) {
+            errorMessage = 'В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.'
+          } else {
+            errorMessage = errorMessageObj.message || 'Произошла ошибка при загрузке расписания'
+          }
           
           console.error(`Schedule fetch failed for group ${group}, no cache available:`, e)
+          console.error(`Error message: ${errorMessage}`)
           
           const cacheAvailableFor = Array.from(cachedSchedules.entries())
             .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())

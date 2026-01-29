@@ -115,6 +115,23 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
           networkErrorCode: networkError.code,
           networkErrorMessage: networkError.message
         })
+      } else if (networkError.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || networkError.message?.includes('self-signed certificate') || networkError.message?.includes('certificate')) {
+        // Ошибка SSL сертификата
+        console.error(`SSL certificate error while fetching ${PROXY_URL}:`, {
+          code: networkError.code,
+          message: networkError.message,
+          url
+        })
+        const sslError = new Error(`В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.`)
+        logErrorToFile(sslError, {
+          type: 'ssl_certificate_error',
+          groupName,
+          url,
+          groupID,
+          networkErrorCode: networkError.code,
+          networkErrorMessage: networkError.message
+        })
+        throw sslError
       } else {
         // Логируем другие ошибки тоже
         logErrorToFile(errorObj, {
@@ -125,6 +142,18 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
         })
       }
     } else {
+      // Проверяем сообщение об ошибке на наличие упоминания сертификата
+      if (errorObj.message?.includes('self-signed certificate') || errorObj.message?.includes('certificate')) {
+        const sslError = new Error(`В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.`)
+        logErrorToFile(sslError, {
+          type: 'ssl_certificate_error',
+          groupName,
+          url,
+          groupID,
+          errorMessage: errorObj.message
+        })
+        throw sslError
+      }
       // Логируем ошибки без cause
       logErrorToFile(errorObj, {
         type: 'unknown_error',
@@ -234,6 +263,23 @@ export async function getTeacherSchedule(teacherID: number, teacherName: string,
           networkErrorCode: networkError.code,
           networkErrorMessage: networkError.message
         })
+      } else if (networkError.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || networkError.message?.includes('self-signed certificate') || networkError.message?.includes('certificate')) {
+        // Ошибка SSL сертификата
+        console.error(`SSL certificate error while fetching ${PROXY_URL}:`, {
+          code: networkError.code,
+          message: networkError.message,
+          url
+        })
+        const sslError = new Error(`В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.`)
+        logErrorToFile(sslError, {
+          type: 'ssl_certificate_error',
+          teacherName,
+          url,
+          teacherID,
+          networkErrorCode: networkError.code,
+          networkErrorMessage: networkError.message
+        })
+        throw sslError
       } else {
         // Логируем другие ошибки тоже
         logErrorToFile(errorObj, {
@@ -244,6 +290,18 @@ export async function getTeacherSchedule(teacherID: number, teacherName: string,
         })
       }
     } else {
+      // Проверяем сообщение об ошибке на наличие упоминания сертификата
+      if (errorObj.message?.includes('self-signed certificate') || errorObj.message?.includes('certificate')) {
+        const sslError = new Error(`В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.`)
+        logErrorToFile(sslError, {
+          type: 'ssl_certificate_error',
+          teacherName,
+          url,
+          teacherID,
+          errorMessage: errorObj.message
+        })
+        throw sslError
+      }
       // Логируем ошибки без cause
       logErrorToFile(errorObj, {
         type: 'unknown_error',
