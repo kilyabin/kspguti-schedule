@@ -624,19 +624,37 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
           }
         } else if (isTeacherSchedule) {
           // Для преподавателей место может быть в другом формате в тексте ячейки
-          // Формат: "ПредметГруппа(Аудитория)Адрес"
-          const fullText = disciplineCell.textContent?.trim() || ''
-          if (fullText) {
-            // Ищем паттерн: группа в скобках и адрес после
-            // Например: "(ИКС-8)Московское шоссе, 120" или "(ССА-15к)Моск"
-            const placeMatch = fullText.match(/\(([^)]+)\)([^(]+?)(?:\d+|$)/)
+          // Формат: "ПредметГруппа(Аудитория)Адрес" или в отдельной ячейке
+          // Сначала проверяем наличие отдельной ячейки с местом (как для групп)
+          const placeCellIndex = cells.length >= 6 ? 5 : (cells.length >= 5 ? 4 : -1)
+          if (placeCellIndex >= 0 && cells[placeCellIndex]) {
+            const placeCell = cells[placeCellIndex]
+            const placeText = placeCell.textContent?.trim() || ''
+            // Ищем адрес и кабинет в формате "адрес\nКабинет: номер"
+            const placeMatch = placeText.match(/([^\n]+)\n.*?Кабинет:\s*([^\s\n]+)/i)
             if (placeMatch) {
-              const classroom = placeMatch[1].trim()
-              const address = placeMatch[2].trim()
-              if (classroom && address) {
-                lesson.place = {
-                  address,
-                  classroom
+              lesson.place = {
+                address: placeMatch[1].trim(),
+                classroom: placeMatch[2].trim()
+              }
+            }
+          }
+          
+          // Если не нашли в отдельной ячейке, ищем в тексте ячейки с предметом
+          if (!lesson.place) {
+            const fullText = disciplineCell.textContent?.trim() || ''
+            if (fullText) {
+              // Ищем паттерн: группа в скобках и адрес после
+              // Например: "(ИКС-8)Московское шоссе, 120" или "(ССА-15к)Моск"
+              const placeMatch = fullText.match(/\(([^)]+)\)([^(]+?)(?:\d+|$)/)
+              if (placeMatch) {
+                const classroom = placeMatch[1].trim()
+                const address = placeMatch[2].trim()
+                if (classroom && address && address.length > 3) {
+                  lesson.place = {
+                    address,
+                    classroom
+                  }
                 }
               }
             }
@@ -698,8 +716,21 @@ export function parsePage(document: Document, groupName: string, url?: string, s
     // Способ 2: Если не нашли, ищем таблицу по имени в первой строке (может быть заголовок)
     if (!table) {
       table = tables.find(table => {
-        const firstRow = table.querySelector(':scope > tbody > tr:first-child')
-        return firstRow?.textContent?.trim() === groupName
+        const firstRow = table.querySelector(':scope > tbody > tr:first-child') || table.querySelector(':scope > tr:first-child')
+        const firstRowText = firstRow?.textContent?.trim() || ''
+        // Проверяем точное совпадение
+        return firstRowText === groupName
+      })
+    }
+    
+    // Способ 2.5: Ищем таблицу, которая содержит имя где-то в первых строках (только если имя длинное)
+    if (!table && groupName.length > 10) {
+      table = tables.find(table => {
+        const rows = Array.from(table.querySelectorAll('tr')).slice(0, 3)
+        return rows.some(row => {
+          const rowText = row.textContent?.trim() || ''
+          return rowText.includes(groupName)
+        })
       })
     }
   } else {

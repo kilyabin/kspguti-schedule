@@ -234,17 +234,19 @@ export default function HomePage(props: HomePageProps) {
             </Card>
           )}
 
+          {/* Кнопка перехода к расписанию преподавателей */}
+          <div
+            className="stagger-card mt-6"
+            style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
+          >
+            <Link href="/teachers" className="block">
+              <Button variant="default" className="w-full h-auto py-4 text-base font-semibold">
+                Расписание преподавателей
+              </Button>
+            </Link>
+          </div>
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
-            <div
-              className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
-            >
-              <Link href="/teachers">
-                <Button variant="secondary" className="gap-2">
-                  Преподаватели
-                </Button>
-              </Link>
-            </div>
             {showAddGroupButton && (
               <div
                 className="stagger-card"
