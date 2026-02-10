@@ -24,7 +24,7 @@ async function handler(
     const currentSettings = loadSettings(true)
     
     // Обновление настроек
-    const { weekNavigationEnabled, showAddGroupButton, vacationModeEnabled, vacationModeContent, debug } = req.body
+    const { weekNavigationEnabled, showAddGroupButton, showTeachersButton, vacationModeEnabled, vacationModeContent, debug } = req.body
 
     if (typeof weekNavigationEnabled !== 'boolean') {
       res.status(400).json({ error: 'weekNavigationEnabled must be a boolean' })
@@ -33,6 +33,11 @@ async function handler(
 
     if (showAddGroupButton !== undefined && typeof showAddGroupButton !== 'boolean') {
       res.status(400).json({ error: 'showAddGroupButton must be a boolean' })
+      return
+    }
+
+    if (showTeachersButton !== undefined && typeof showTeachersButton !== 'boolean') {
+      res.status(400).json({ error: 'showTeachersButton must be a boolean' })
       return
     }
 
@@ -77,6 +82,7 @@ async function handler(
       ...currentSettings,
       weekNavigationEnabled,
       showAddGroupButton: showAddGroupButton !== undefined ? showAddGroupButton : (currentSettings.showAddGroupButton ?? true),
+      showTeachersButton: showTeachersButton !== undefined ? showTeachersButton : (currentSettings.showTeachersButton ?? true),
       vacationModeEnabled: vacationModeEnabled !== undefined ? vacationModeEnabled : (currentSettings.vacationModeEnabled ?? false),
       vacationModeContent: vacationModeContent !== undefined ? vacationModeContent : (currentSettings.vacationModeContent || ''),
       ...(validatedDebug !== undefined && { debug: validatedDebug })

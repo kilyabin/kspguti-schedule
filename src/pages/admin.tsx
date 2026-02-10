@@ -364,8 +364,8 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
     try {
       const res = await fetch('/api/admin/logs')
       const data = await res.json()
-      if (data.success && data.logs) {
-        setLogs(data.logs)
+      if (data.success) {
+        setLogs(data.logs ?? '')
       } else {
         setLogs(data.error || 'Не удалось загрузить логи')
       }
@@ -530,6 +530,19 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                   <ToggleSwitch
                     checked={settings.showAddGroupButton ?? true}
                     onChange={(checked) => handleUpdateSettings({ ...settings, showAddGroupButton: checked })}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="font-semibold">Кнопка "Преподаватели"</div>
+                    <div className="text-sm text-muted-foreground">
+                      Отображать кнопку перехода к расписанию преподавателей на главной странице
+                    </div>
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.showTeachersButton ?? true}
+                    onChange={(checked) => handleUpdateSettings({ ...settings, showTeachersButton: checked })}
                     disabled={loading}
                   />
                 </div>
@@ -892,7 +905,7 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
           <DialogHeader>
             <DialogTitle>Логи ошибок</DialogTitle>
             <DialogDescription>
-              Содержимое файла error.log
+              Ошибки парсинга записываются в error.log. Если записей пока нет — здесь будет пусто.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">

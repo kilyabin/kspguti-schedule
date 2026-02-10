@@ -14,18 +14,18 @@ async function handler(
   // Путь к файлу логов (в корне проекта)
   const logPath = path.join(process.cwd(), 'error.log')
   
-  // Проверяем существование файла
+  // Проверяем существование файла (если нет — возвращаем пустую строку, UI покажет «Логи пусты»)
   if (!fs.existsSync(logPath)) {
-    res.status(200).json({ success: true, logs: 'Файл логов пуст или не существует.' })
+    res.status(200).json({ success: true, logs: '' })
     return
   }
 
   // Читаем файл
   const logs = fs.readFileSync(logPath, 'utf8')
-  
-  // Если файл пуст
+
+  // Если файл пуст — возвращаем пустую строку
   if (!logs || logs.trim().length === 0) {
-    res.status(200).json({ success: true, logs: 'Файл логов пуст.' })
+    res.status(200).json({ success: true, logs: '' })
     return
   }
 

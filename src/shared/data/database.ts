@@ -361,6 +361,7 @@ export function getSettings(): AppSettings {
     const defaultSettings: AppSettings = {
       weekNavigationEnabled: false,
       showAddGroupButton: true,
+      showTeachersButton: true,
       vacationModeEnabled: false,
       vacationModeContent: '',
       debug: {
@@ -381,6 +382,7 @@ export function getSettings(): AppSettings {
     return {
       weekNavigationEnabled: settings.weekNavigationEnabled ?? false,
       showAddGroupButton: settings.showAddGroupButton ?? true,
+      showTeachersButton: settings.showTeachersButton ?? true,
       vacationModeEnabled: settings.vacationModeEnabled ?? false,
       vacationModeContent: settings.vacationModeContent ?? '',
       ...settings,
@@ -397,6 +399,7 @@ export function getSettings(): AppSettings {
     const defaultSettings: AppSettings = {
       weekNavigationEnabled: false,
       showAddGroupButton: true,
+      showTeachersButton: true,
       vacationModeEnabled: false,
       vacationModeContent: '',
       debug: {
@@ -416,6 +419,7 @@ export function updateSettings(settings: AppSettings): void {
   const defaultSettings: AppSettings = {
     weekNavigationEnabled: false,
     showAddGroupButton: true,
+    showTeachersButton: true,
     vacationModeEnabled: false,
     vacationModeContent: '',
     debug: {
