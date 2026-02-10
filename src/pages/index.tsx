@@ -32,6 +32,7 @@ type NormalModeProps = {
   groups: GroupsData
   groupsByCourse: { [course: number]: Array<{ id: string; name: string }> }
   showAddGroupButton: boolean
+  showTeachersButton: boolean
 }
 
 type HomePageProps = VacationModeProps | NormalModeProps
@@ -113,7 +114,7 @@ export default function HomePage(props: HomePageProps) {
   }
 
   // Обычный режим - список групп
-  const { groups, groupsByCourse, showAddGroupButton } = props
+  const { groups, groupsByCourse, showAddGroupButton, showTeachersButton } = props
   const [openCourses, setOpenCourses] = React.useState<Set<number>>(new Set())
   const [addGroupDialogOpen, setAddGroupDialogOpen] = React.useState(false)
 
@@ -235,16 +236,18 @@ export default function HomePage(props: HomePageProps) {
           )}
 
           {/* Кнопка перехода к расписанию преподавателей */}
-          <div
-            className="stagger-card mt-6"
-            style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
-          >
-            <Link href="/teachers" className="block">
-              <Button variant="default" className="w-full h-auto py-4 text-base font-semibold">
-                Расписание преподавателей
-              </Button>
-            </Link>
-          </div>
+          {showTeachersButton && (
+            <div
+              className="stagger-card mt-6"
+              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
+            >
+              <Link href="/teachers" className="block">
+                <Button variant="default" className="w-full h-auto py-4 text-base font-semibold">
+                  Расписание преподавателей
+                </Button>
+              </Link>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
             {showAddGroupButton && (
@@ -349,7 +352,8 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
       vacationModeEnabled: false,
       groups,
       groupsByCourse,
-      showAddGroupButton: settings.showAddGroupButton ?? true
+      showAddGroupButton: settings.showAddGroupButton ?? true,
+      showTeachersButton: settings.showTeachersButton ?? true
     } as NormalModeProps
   }
 }

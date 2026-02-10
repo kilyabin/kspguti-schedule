@@ -10,14 +10,14 @@ Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support.
 
 ## Tech stack & features
 
-- React 19.2.0 with Next.js 16.0.3 (pages router)
+- React 19.2.0 with Next.js 16.1.6 (pages router)
 - Tailwind CSS
 - @shadcn/ui components (built with Radix UI)
 - JSDOM for parsing scraped pages, rehydration strategy for cache
 - TypeScript 5.9.3 with types for each package
 - SQLite database (better-sqlite3) for storing groups and settings
 - bcrypt for secure password hashing
-- Telegram Bot API (via [node-telegram-bot-api]) for parsing failure notifications
+- Telegram Bot API (native `fetch`) for parsing failure notifications
 - Custom [js parser for teachers' photos](https://gist.github.com/VityaSchel/28f1a360ee7798511765910b39c6086c)
 - Accessibility & tab navigation support
 - Dark theme with automatic switching based on system settings

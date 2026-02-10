@@ -43,6 +43,7 @@ next-env.d.ts
 
 # error logs
 error.log
+app.log
 
 # database files
 db/

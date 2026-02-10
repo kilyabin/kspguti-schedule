@@ -3,6 +3,8 @@ import { getSettings as getSettingsFromDB, updateSettings as updateSettingsInDB 
 export type AppSettings = {
   weekNavigationEnabled: boolean
   showAddGroupButton: boolean
+  /** Показывать кнопку «Расписание преподавателей» на главной */
+  showTeachersButton?: boolean
   vacationModeEnabled?: boolean
   vacationModeContent?: string
   debug?: {
@@ -40,6 +42,7 @@ export function loadSettings(forceRefresh: boolean = false): AppSettings {
     const defaultSettings: AppSettings = {
       weekNavigationEnabled: false,
       showAddGroupButton: true,
+      showTeachersButton: true,
       vacationModeEnabled: false,
       vacationModeContent: '',
       debug: {

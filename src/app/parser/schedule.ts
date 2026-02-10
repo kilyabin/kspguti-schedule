@@ -1,5 +1,6 @@
 import { Day } from '@/shared/model/day'
 import { Lesson } from '@/shared/model/lesson'
+import { logDebug } from '@/app/logger'
 
 export type WeekInfo = {
   wk: number
@@ -770,19 +771,18 @@ export function parsePage(document: Document, groupName: string, url?: string, s
   }
   
   if (!table) {
-    // Логируем информацию о найденных таблицах для отладки
-    console.log(`[parsePage] Found ${tables.length} tables, analyzing...`)
+    logDebug('parsePage: tables analyzing', { groupName, tablesCount: tables.length })
     tables.forEach((t, i) => {
       const text = t.textContent?.substring(0, 200) || ''
       const hasDayTitles = /(Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}/i.test(text)
       const hasTimeSlots = /\d{1,2}:\d{2}\s*–\s*\d{1,2}:\d{2}/.test(text)
       const nameCount = (text.match(/[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+/g) || []).length
-      console.log(`[parsePage] Table ${i}: rows=${t.querySelectorAll('tr').length}, hasDayTitles=${hasDayTitles}, hasTimeSlots=${hasTimeSlots}, nameCount=${nameCount}, preview="${text}"`)
+      logDebug('parsePage: table analysis', { tableIndex: i, rows: t.querySelectorAll('tr').length, hasDayTitles, hasTimeSlots, nameCount, preview: text.substring(0, 80) })
     })
     throw new Error(`Table not found for ${groupName}. Found ${tables.length} tables on the page.`)
   }
-  
-  console.log(`[parsePage] Selected table with ${table.querySelectorAll('tr').length} rows`)
+
+  logDebug('parsePage: selected table', { groupName, rows: table.querySelectorAll('tr').length })
   
   // Пытаемся найти tbody или использовать прямые children таблицы
   let tbody: HTMLTableSectionElement | null = null
@@ -799,15 +799,19 @@ export function parsePage(document: Document, groupName: string, url?: string, s
     }
   }
   
-  // Получаем строки из tbody или напрямую из таблицы
+  // Структура таблицы расписания с lk.ks.psuti.ru (mn=2&obj=ID группы):
+  // allRows[0] — название группы в одной ячейке (colspan=7);
+  // allRows[1] — пустая строка-разделитель (одна td colspan=7);
+  // далее повторяются блоки: [заголовок дня] [заголовок колонок] [пары...] [пустая строка].
+  // Заголовок дня: одна <tr> с одной <td colspan=7>, внутри вложенная таблица с <h3>Понедельник DD.MM.YYYY / N неделя</h3>.
+  // Заголовок колонок: <tr> с 7 <td> — «№ пары», «Время занятий», «Способ», «Дисциплина, преподаватель», «Тема занятия», «Ресурс», «Задание для выполнения».
+  // Строка пары: 7 <td> — номер, время (08:00 – 09:30), способ, ячейка с предметом/преподавателем/местом (subject + <br> + teacher + <font> адрес, Кабинет), тема, ресурсы, задание.
   const allRows = tbody 
     ? Array.from(tbody.querySelectorAll('tr'))
     : Array.from(table.querySelectorAll('tr'))
   
   const rows = allRows.slice(2)
-  
-  console.log(`[parsePage] Found ${rows.length} rows to parse for ${groupName}`)
-  console.log(`[parsePage] First few rows text:`, rows.slice(0, 5).map(r => r.textContent?.trim().substring(0, 50)))
+  logDebug('parsePage: rows to parse', { groupName, rowsCount: rows.length, firstRows: rows.slice(0, 5).map(r => r.textContent?.trim().substring(0, 50)) })
 
   const days = []
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -827,13 +831,13 @@ export function parsePage(document: Document, groupName: string, url?: string, s
     const rowText = row.textContent?.trim() || ''
 
     const isDivider = rowText === ''
+    // Строка заголовка таблицы (идёт сразу после заголовка дня) — не считать новым днём
+    const looksLikeTableHeader = /№ пары|Время занятий|Дисциплина, преподаватель/i.test(rowText)
     // Проверяем, является ли строка заголовком дня: должна содержать паттерн "день недели дата / номер неделя"
-    // Поддерживаем оба формата: с пробелом и без пробела перед "/"
     const looksLikeDayTitle = /(Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}\s*\/\s*\d+\s+неделя/i.test(rowText)
-    // Заголовок дня может быть в любой момент - либо когда нет дня, либо когда начинается новый день
-    const isDayTitle = looksLikeDayTitle
+    const isDayTitle = looksLikeDayTitle && !looksLikeTableHeader
     // Если уже есть день с датой и встречаем новый заголовок дня, сохраняем предыдущий день
-    const isNewDayTitle = looksLikeDayTitle && ('date' in dayInfo)
+    const isNewDayTitle = isDayTitle && ('date' in dayInfo)
     const isTableHeader = previousRowIsDayTitle
 
     // Если встречаем новый день, сохраняем предыдущий
@@ -847,8 +851,9 @@ export function parsePage(document: Document, groupName: string, url?: string, s
     }
 
     if (isDivider) {
-      // Сохраняем день при разделителе, только если есть данные
-      if ('date' in dayInfo) {
+      // Сохраняем день при разделителе только если есть уроки — иначе пустая строка
+      // между заголовком дня и строкой «№ пары / Время» сбрасывала контекст и все пары пропускались
+      if ('date' in dayInfo && dayLessons.length > 0) {
         days.push({ ...dayInfo, lessons: dayLessons })
         dayLessons = []
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -880,7 +885,7 @@ export function parsePage(document: Document, groupName: string, url?: string, s
       
       try {
         const { date, weekNumber } = dayTitleParser(dayTitleText)
-        console.log(`[parsePage] Parsed day title: ${dayTitleText} -> date: ${date}, week: ${weekNumber}`)
+        logDebug('parsePage: parsed day title', { dayTitleText, date, weekNumber })
         dayInfo.date = date
         dayInfo.weekNumber = weekNumber
         if (!currentWeekNumber) {
@@ -890,16 +895,21 @@ export function parsePage(document: Document, groupName: string, url?: string, s
         // Важно: после парсинга заголовка дня, следующий цикл должен обрабатывать уроки
         // Поэтому НЕ делаем continue, а просто устанавливаем флаг
         // Проверяем, что dayInfo действительно установлен
-        console.log(`[parsePage] Day info set: date=${dayInfo.date}, weekNumber=${dayInfo.weekNumber}`)
+        logDebug('parsePage: day info set', { date: dayInfo.date, weekNumber: dayInfo.weekNumber })
       } catch (error) {
         // Если не удалось распарсить заголовок, пропускаем строку
-        console.warn(`[parsePage] Failed to parse day title: ${dayTitleText}`, error)
+        logDebug('parsePage: failed to parse day title', { dayTitleText, error: String(error) })
         continue
       }
     } else {
       // Пытаемся распарсить как урок, только если уже есть день
       const hasDayContext = 'date' in dayInfo
       if (hasDayContext) {
+        // Сразу пропускаем строку заголовка таблицы (№ пары, Время занятий, …)
+        if (looksLikeTableHeader) {
+          previousRowIsDayTitle = false
+          continue
+        }
         // Пропускаем строки, которые являются только номерами пар или временем (заголовки столбцов)
         const cells = Array.from(row.querySelectorAll(':scope > td'))
         const cellTexts = cells.map(cell => cell.textContent?.trim() || '').filter(t => t)
@@ -928,11 +938,11 @@ export function parsePage(document: Document, groupName: string, url?: string, s
           } else if ('fallbackDiscipline' in lesson && lesson.fallbackDiscipline) {
             lessonName = lesson.fallbackDiscipline
           }
-          console.log(`[parsePage] Parsed lesson: ${lessonName}`)
+          logDebug('parsePage: parsed lesson', { lessonName })
           dayLessons.push(lesson)
         } else {
           // Логируем строки, которые не распарсились как уроки
-          console.log(`[parsePage] Failed to parse lesson from row: ${rowText.substring(0, 100)}`)
+          logDebug('parsePage: failed to parse lesson from row', { rowPreview: rowText.substring(0, 100) })
         }
       } else {
         // Логируем строки, которые не распознаются как дни и не парсятся как уроки
@@ -940,7 +950,7 @@ export function parsePage(document: Document, groupName: string, url?: string, s
         if (rowText && !looksLikeDayTitle) {
           const cells = Array.from(row.querySelectorAll(':scope > td'))
           if (cells.length > 0) {
-            console.log(`[parsePage] Skipping row (no day context): ${rowText.substring(0, 100)}`)
+            logDebug('parsePage: skipping row (no day context)', { rowPreview: rowText.substring(0, 100) })
           }
         }
       }
@@ -949,11 +959,11 @@ export function parsePage(document: Document, groupName: string, url?: string, s
   
   // Добавляем последний день, если он не был добавлен
   if ('date' in dayInfo) {
-    console.log(`[parsePage] Adding final day with ${dayLessons.length} lessons`)
+    logDebug('parsePage: adding final day', { lessonsCount: dayLessons.length })
     days.push({ ...dayInfo, lessons: dayLessons })
   }
   
-  console.log(`[parsePage] Total days parsed: ${days.length}`)
+  logDebug('parsePage: total days parsed', { daysCount: days.length })
 
   // Парсим навигацию по неделям только если включена навигация
   let availableWeeks: WeekInfo[] | undefined

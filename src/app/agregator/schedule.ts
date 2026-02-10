@@ -2,7 +2,7 @@ import { Day } from '@/shared/model/day'
 import { parsePage, ParseResult, WeekInfo } from '@/app/parser/schedule'
 import contentTypeParser from 'content-type'
 import { JSDOM } from 'jsdom'
-import { reportParserError, logErrorToFile } from '@/app/logger'
+import { reportParserError, logErrorToFile, logInfo } from '@/app/logger'
 import { PROXY_URL } from '@/shared/constants/urls'
 
 export type ScheduleResult = {
@@ -29,11 +29,12 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
   }
   
   const url = `${PROXY_URL}/?mn=2&obj=${groupID}${wk ? `&wk=${wk}` : ''}`
-  
+  logInfo('Schedule fetch start', { groupID, groupName, wk: wk ?? 'current' })
+
   // Добавляем таймаут 8 секунд для fetch запроса
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 секунд
-  
+
   try {
     const page = await fetch(url, { signal: controller.signal })
     clearTimeout(timeoutId)
@@ -50,6 +51,7 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
           currentWk: result.currentWk || wk,
           availableWeeks: result.availableWeeks
         }
+        logInfo('Schedule fetch success', { groupName, daysCount: result.days.length, currentWk: result.currentWk })
         // Явно очищаем JSDOM для освобождения памяти
         dom.window.close()
         dom = null
@@ -177,11 +179,12 @@ export async function getTeacherSchedule(teacherID: number, teacherName: string,
   }
   
   const url = `${PROXY_URL}/?mn=3&obj=${teacherID}${wk ? `&wk=${wk}` : ''}`
-  
+  logInfo('Teacher schedule fetch start', { teacherID, teacherName, wk: wk ?? 'current' })
+
   // Добавляем таймаут 8 секунд для fetch запроса
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 секунд
-  
+
   try {
     const page = await fetch(url, { signal: controller.signal })
     clearTimeout(timeoutId)
@@ -198,6 +201,7 @@ export async function getTeacherSchedule(teacherID: number, teacherName: string,
           currentWk: result.currentWk || wk,
           availableWeeks: result.availableWeeks
         }
+        logInfo('Teacher schedule fetch success', { teacherName, daysCount: result.days.length, currentWk: result.currentWk })
         // Явно очищаем JSDOM для освобождения памяти
         dom.window.close()
         dom = null
