@@ -991,20 +991,43 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
       lesson.topic = cells[4].textContent?.trim() || ''
     }
 
+    // Колонка "Ресурс"
     lesson.resources = []
     if (cells[5]) {
-      Array.from(cells[5].querySelectorAll('a'))
-        .forEach(a => {
-          const title = a.textContent?.trim()
-          const url = a.getAttribute('href')
-          if (title && url) {
-            lesson.resources.push({
-              type: 'link',
-              title,
-              url
-            })
-          }
-        })
+      Array.from(cells[5].querySelectorAll('a')).forEach(a => {
+        const title = a.textContent?.trim()
+        const url = a.getAttribute('href')
+        if (title && url) {
+          lesson.resources.push({
+            type: 'link',
+            title,
+            url,
+          })
+        }
+      })
+    }
+
+    // Колонка "Задание для выполнения"
+    lesson.homework = ''
+    if (cells[6]) {
+      const hwCell = cells[6]
+      const rawText = hwCell.textContent?.replace(/\s+/g, ' ').trim() || ''
+      if (rawText) {
+        lesson.homework = rawText
+      }
+
+      // Добавляем ссылки из задания тоже в список материалов
+      Array.from(hwCell.querySelectorAll('a')).forEach(a => {
+        const title = a.textContent?.trim()
+        const url = a.getAttribute('href')
+        if (title && url) {
+          lesson.resources.push({
+            type: 'link',
+            title,
+            url,
+          })
+        }
+      })
     }
 
     return lesson

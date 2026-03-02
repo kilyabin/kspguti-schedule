@@ -10,11 +10,12 @@ import { Lesson } from '@/shared/model/lesson'
 import Link from 'next/link'
 import { BiLink } from 'react-icons/bi'
 
-export function ResourcesDialog({ open, onClose, teacherName, resources }: {
+export function ResourcesDialog({ open, onClose, teacherName, resources, homework }: {
   open: boolean
   onClose: () => any
   teacherName?: string
   resources: Lesson['resources']
+  homework?: string
 }) {
   const teacherPronouns = teachers.find(t => t.name === teacherName)?.pronouns
 
@@ -38,6 +39,11 @@ export function ResourcesDialog({ open, onClose, teacherName, resources }: {
           )}
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          {homework && homework.trim() && (
+            <div className="text-sm whitespace-pre-wrap break-words">
+              {homework}
+            </div>
+          )}
           {resources.map((resource, i) => <Resource resource={resource} key={i} />)}
         </div>
       </DialogContent>
