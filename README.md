@@ -23,6 +23,7 @@ Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support.
 - Dark theme with automatic switching based on system settings
 - Admin panel for managing groups and settings
 - Optimized code structure with reusable utilities and components
+ - Optional auto-sync of groups from `lk.ks.psuti.ru` controlled by env
 
 ## Architecture & Code Organization
 
@@ -58,6 +59,20 @@ The project follows a feature-sliced design pattern with clear separation of con
 - Previous week cannot be accessed if you enter from main "/"
 
 Workaround: Locate to next week, then enter previous twice.
+
+## Schedule modes
+
+The behaviour of group management and data source is controlled by the `SCHED_MODE` environment variable:
+
+- `hobby` (default):  
+  - Groups are managed manually via the admin panel (add/edit/delete).  
+  - The app uses whatever is stored in the local SQLite `groups` table.
+- `kspsuti`:  
+  - On the server, the app periodically fetches `https://lk.ks.psuti.ru/?mn=2`, parses the group list (day + distance), and synchronises it into the local database.  
+  - The admin panel shows the current groups but disables manual editing/removal — groups are treated as read‑only and must be changed on the college site.  
+  - All pages that call `loadGroups()` automatically work with the synced list.
+
+Set `SCHED_MODE=kspsuti` during deployment to enable automatic group syncing; omit it or set `SCHED_MODE=hobby` to keep the previous manual workflow.
 
 ## Project structure
 

@@ -1,4 +1,6 @@
 import { getAllGroups as getAllGroupsFromDB, createGroup, updateGroup, deleteGroup, getGroup } from './database'
+import { SCHED_MODE } from '@/shared/constants/urls'
+import { syncGroupsFromKspsutiIfNeeded } from '@/app/agregator/groups'
 
 export type GroupInfo = {
   parseId: number
@@ -11,17 +13,28 @@ export type GroupsData = { [group: string]: GroupInfo }
 let cachedGroups: GroupsData | null = null
 let cacheTimestamp: number = 0
 const CACHE_TTL_MS = 1000 * 60 // 1 минута
+const KSPSUTI_SYNC_TTL_MS = 1000 * 60 * 60 // 1 час
 
 /**
- * Загружает группы из базы данных
- * Использует кеш с TTL для оптимизации, но всегда загружает свежие данные при необходимости
+ * Загружает группы из базы данных.
+ * В режиме SCHED_MODE=kspsuti перед загрузкой пытается синхронизировать список групп с сайтом колледжа.
+ * Использует кеш с TTL для оптимизации, но всегда загружает свежие данные при необходимости.
  */
-export function loadGroups(forceRefresh: boolean = false): GroupsData {
+export async function loadGroups(forceRefresh: boolean = false): Promise<GroupsData> {
   const now = Date.now()
   const isCacheValid = cachedGroups !== null && !forceRefresh && (now - cacheTimestamp) < CACHE_TTL_MS
-  
+
   if (isCacheValid && cachedGroups !== null) {
     return cachedGroups
+  }
+
+  // В авто‑режиме сначала пробуем синхронизировать группы с lk.ks.psuti.ru.
+  if (SCHED_MODE === 'kspsuti') {
+    const synced = await syncGroupsFromKspsutiIfNeeded(KSPSUTI_SYNC_TTL_MS)
+    if (synced) {
+      saveGroups(synced)
+      clearGroupsCache()
+    }
   }
 
   try {

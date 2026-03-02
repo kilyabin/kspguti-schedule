@@ -23,11 +23,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/shadcn/ui/accordion'
+import { SCHED_MODE } from '@/shared/constants/urls'
 
 type AdminPageProps = {
   groups: GroupsData
   settings: AppSettings
   isDefaultPassword: boolean
+  isKspsutiMode: boolean
 }
 
 // Компонент Toggle Switch
@@ -94,7 +96,7 @@ function DialogFooterButtons({ onCancel, onSubmit, submitLabel, loading, submitV
   )
 }
 
-export default function AdminPage({ groups: initialGroups, settings: initialSettings, isDefaultPassword: initialIsDefaultPassword }: AdminPageProps) {
+export default function AdminPage({ groups: initialGroups, settings: initialSettings, isDefaultPassword: initialIsDefaultPassword, isKspsutiMode }: AdminPageProps) {
   const [authenticated, setAuthenticated] = React.useState<boolean | null>(null)
   const [password, setPassword] = React.useState('')
   const [loading, setLoading] = React.useState(false)
@@ -590,9 +592,11 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                   <CardTitle>Группы</CardTitle>
                   <CardDescription>Управление группами для расписания</CardDescription>
                 </div>
-                <Button onClick={() => setShowAddDialog(true)}>
-                  Добавить группу
-                </Button>
+                {!isKspsutiMode && (
+                  <Button onClick={() => setShowAddDialog(true)}>
+                    Добавить группу
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -610,23 +614,30 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                         <div className="text-sm text-muted-foreground">
                           ID: {id} | Parse ID: {group.parseId} | Курс: {group.course}
                         </div>
+                        {isKspsutiMode && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Группа получена автоматически с lk.ks.psuti.ru. Редактирование отключено.
+                          </div>
+                        )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditDialog(id)}
-                        >
-                          Редактировать
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => openDeleteDialog(id)}
-                        >
-                          Удалить
-                        </Button>
-                      </div>
+                      {!isKspsutiMode && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(id)}
+                          >
+                            Редактировать
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteDialog(id)}
+                          >
+                            Удалить
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1124,7 +1135,7 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
 }
 
 export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () => {
-  const groups = loadGroups()
+  const groups = await loadGroups()
   const settings = loadSettings()
   
   // Проверяем, используется ли дефолтный пароль
@@ -1135,7 +1146,8 @@ export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () =
     props: {
       groups,
       settings,
-      isDefaultPassword: isDefault
+      isDefaultPassword: isDefault,
+      isKspsutiMode: SCHED_MODE === 'kspsuti',
     }
   }
 }

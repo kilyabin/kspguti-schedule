@@ -17,3 +17,10 @@ export const TELEGRAM_CONTACT_URL = 'https://t.me/ilyakm'
 // Teacher photos base URL
 export const TEACHER_PHOTOS_BASE_URL = `${KS_PSUTI_IMAGES_BASE_URL}/stories`
 
+// Schedule mode: controls how groups and schedules are obtained
+export type SchedMode = 'hobby' | 'kspsuti'
+
+const rawSchedMode = process.env.SCHED_MODE?.toLowerCase()
+
+export const SCHED_MODE: SchedMode = rawSchedMode === 'kspsuti' ? 'kspsuti' : 'hobby'
+

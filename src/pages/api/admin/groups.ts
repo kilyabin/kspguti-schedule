@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withAuth, ApiResponse } from '@/shared/utils/api-wrapper'
 import { loadGroups, saveGroups, clearGroupsCache, GroupsData } from '@/shared/data/groups-loader'
 import { validateGroupId, validateCourse } from '@/shared/utils/validation'
+import { SCHED_MODE } from '@/shared/constants/urls'
 
 type ResponseData = ApiResponse<{
   groups?: GroupsData
@@ -11,10 +12,15 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
+  if (SCHED_MODE === 'kspsuti' && req.method !== 'GET') {
+    res.status(403).json({ error: 'Groups are managed automatically from lk.ks.psuti.ru in this mode' })
+    return
+  }
+
   if (req.method === 'GET') {
     // Получение списка групп (всегда свежие данные для админ-панели)
     clearGroupsCache()
-    const groups = loadGroups(true)
+    const groups = await loadGroups(true)
     res.status(200).json({ groups })
     return
   }
@@ -50,7 +56,7 @@ async function handler(
       return
     }
 
-    const groups = loadGroups()
+    const groups = await loadGroups()
 
     // Проверка на дубликат
     if (groups[id]) {
@@ -68,7 +74,7 @@ async function handler(
     saveGroups(groups)
     // Сбрасываем кеш и загружаем свежие данные из БД
     clearGroupsCache()
-    const updatedGroups = loadGroups(true)
+    const updatedGroups = await loadGroups(true)
     res.status(200).json({ success: true, groups: updatedGroups })
     return
   }

@@ -154,7 +154,7 @@ function cleanupCache() {
 
 export async function getServerSideProps(context: GetServerSidePropsContext<{ group: string }>): Promise<GetServerSidePropsResult<NextSerialized<PageProps>>> {
   // Используем кеш (обновляется каждую минуту автоматически)
-  const groups = loadGroups()
+  const groups = await loadGroups()
   const settings = loadSettings()
   const group = context.params?.group
   const wkParam = context.query.wk
