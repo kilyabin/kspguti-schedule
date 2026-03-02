@@ -118,17 +118,6 @@ export default function HomePage(props: HomePageProps) {
   const [openCourses, setOpenCourses] = React.useState<Set<number>>(new Set())
   const [addGroupDialogOpen, setAddGroupDialogOpen] = React.useState(false)
 
-  // Подсчитываем смещения для каждого курса для последовательной анимации
-  const courseOffsets = React.useMemo(() => {
-    const offsets: { [course: number]: number } = {}
-    let totalGroups = 0
-    for (const course of [1, 2, 3, 4, 5]) {
-      offsets[course] = totalGroups
-      totalGroups += (groupsByCourse[course] || []).length
-    }
-    return { offsets, totalGroups }
-  }, [groupsByCourse])
-
   const toggleCourse = (course: number) => {
     setOpenCourses(prev => {
       const next = new Set(prev)
@@ -158,7 +147,6 @@ export default function HomePage(props: HomePageProps) {
             {[1, 2, 3, 4, 5].map((course, courseIndex) => {
               const courseGroups = groupsByCourse[course] || []
               const isOpen = openCourses.has(course)
-              const courseOffset = courseOffsets.offsets[course]
 
               if (courseGroups.length === 0) {
                 return null
@@ -193,19 +181,10 @@ export default function HomePage(props: HomePageProps) {
                       <CardContent>
                         <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {courseGroups.map(({ id, name }, groupIndex) => {
-                            // Последовательная анимация: каждый следующий элемент с задержкой
-                            // courseOffset - это количество групп во всех предыдущих курсах
-                            // groupIndex - это индекс в текущем курсе
-                            // Итого: последовательный счетчик для всех групп подряд
-                            const globalIndex = courseOffset + groupIndex
-                            const delay = 0.15 + globalIndex * 0.04
                             return (
                               <div
                                 key={id}
                                 className="stagger-card"
-                                style={{
-                                  animationDelay: `${delay}s`,
-                                } as React.CSSProperties}
                               >
                                 <Link href={`/${id}`}>
                                   <Button
@@ -239,7 +218,6 @@ export default function HomePage(props: HomePageProps) {
           {showTeachersButton && (
             <div
               className="stagger-card mt-6"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.05}s` } as React.CSSProperties}
             >
               <Link href="/teachers" className="block">
                 <Button variant="default" className="w-full h-auto py-4 text-base font-semibold">
@@ -253,7 +231,6 @@ export default function HomePage(props: HomePageProps) {
             {showAddGroupButton && (
               <div
                 className="stagger-card"
-                style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + 0.08}s` } as React.CSSProperties}
               >
                 <Button
                   variant="secondary"
@@ -267,13 +244,11 @@ export default function HomePage(props: HomePageProps) {
             )}
             <div
               className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.11 : 0.08)}s` } as React.CSSProperties}
             >
               <ThemeSwitcher />
             </div>
             <div
               className="stagger-card"
-              style={{ animationDelay: `${0.15 + courseOffsets.totalGroups * 0.04 + (showAddGroupButton ? 0.14 : 0.11)}s` } as React.CSSProperties}
             >
               <Link href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" className="gap-2">
@@ -329,7 +304,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
   }
 
   // Если режим каникул выключен, загружаем группы и обрабатываем их
-  const groups = loadGroups()
+  const groups = await loadGroups()
 
   // Группируем группы по курсам
   const groupsByCourse: { [course: number]: Array<{ id: string; name: string }> } = {}

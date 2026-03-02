@@ -5,7 +5,7 @@ import { SITEMAP_SITE_URL } from '@/shared/constants/urls'
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   // Используем кеш (обновляется каждую минуту автоматически)
-  const groups = loadGroups()
+  const groups = await loadGroups()
   const fields = Object.keys(groups).map<ISitemapField>(group => (
     {
       loc: `${SITEMAP_SITE_URL}/${group}`,

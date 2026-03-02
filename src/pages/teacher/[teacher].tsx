@@ -166,7 +166,7 @@ function cleanupCache() {
 }
 
 export async function getServerSideProps(context: GetServerSidePropsContext<{ teacher: string }>): Promise<GetServerSidePropsResult<NextSerialized<PageProps>>> {
-  const groups = loadGroups()
+  const groups = await loadGroups()
   const settings = loadSettings()
   const teacherParam = context.params?.teacher
   const wkParam = context.query.wk

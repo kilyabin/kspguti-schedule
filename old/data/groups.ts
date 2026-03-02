@@ -6,9 +6,9 @@ let groups: { [group: string]: [number, string] } = {}
 if (typeof window === 'undefined') {
   // Серверная сторона
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const groupsLoader = require('./groups-loader')
-    groups = groupsLoader.loadGroups()
+    // Исторически здесь использовался загрузчик групп.
+    // В актуальной версии приложения данные о группах берутся из новой подсистемы,
+    // поэтому для старого кода оставляем пустой объект.
   } catch (error) {
     console.error('Error loading groups:', error)
     groups = {}

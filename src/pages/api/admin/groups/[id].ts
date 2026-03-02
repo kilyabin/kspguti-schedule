@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withAuth, ApiResponse } from '@/shared/utils/api-wrapper'
 import { loadGroups, saveGroups, clearGroupsCache, GroupsData } from '@/shared/data/groups-loader'
 import { validateCourse } from '@/shared/utils/validation'
+import { SCHED_MODE } from '@/shared/constants/urls'
 
 type ResponseData = ApiResponse<{
   groups?: GroupsData
@@ -18,8 +19,13 @@ async function handler(
     return
   }
 
+  if (SCHED_MODE === 'kspsuti') {
+    res.status(403).json({ error: 'Groups are managed automatically from lk.ks.psuti.ru in this mode' })
+    return
+  }
+
   // Загружаем группы с проверкой кеша
-  let groups = loadGroups()
+  let groups = await loadGroups()
 
   if (req.method === 'PUT') {
     // Редактирование группы
@@ -56,7 +62,7 @@ async function handler(
     saveGroups(groups)
     // Сбрасываем кеш и загружаем свежие данные из БД
     clearGroupsCache()
-    const updatedGroups = loadGroups(true)
+    const updatedGroups = await loadGroups(true)
     res.status(200).json({ success: true, groups: updatedGroups })
     return
   }
@@ -73,7 +79,7 @@ async function handler(
     saveGroups(groups)
     // Сбрасываем кеш и загружаем свежие данные из БД
     clearGroupsCache()
-    const updatedGroups = loadGroups(true)
+    const updatedGroups = await loadGroups(true)
     res.status(200).json({ success: true, groups: updatedGroups })
     return
   }
