@@ -39,6 +39,9 @@ export function Lesson({ lesson, width = 350, animationDelay, hideTeacher = fals
   const hasSubject = 'subject' in lesson && lesson.subject
   const hasContent = hasSubject || (isFallbackDiscipline && lesson.fallbackDiscipline) || (lesson.topic && lesson.topic.trim())
   const isCancelled = lesson.isChange && !hasContent
+  const hasHomework = Boolean(lesson.homework && lesson.homework.trim())
+  const hasResources = Boolean(lesson.resources.length)
+  const hasAnyMaterials = hasResources || hasHomework
 
   const getTeacherPhoto = (url?: string) => {
     if(url) {
@@ -134,7 +137,7 @@ export function Lesson({ lesson, width = 350, animationDelay, hideTeacher = fals
           </div>
         )}
       </CardContent>
-      {!isCancelled && (Boolean(lesson.resources.length) || ('place' in lesson && lesson.place)) && (
+      {!isCancelled && (hasAnyMaterials || ('place' in lesson && lesson.place)) && (
         <CardFooter className="flex flex-col sm:flex-row justify-between gap-2 mt-auto">
           {('place' in lesson && lesson.place) ? (
             <div className='hidden md:flex flex-col text-muted-foreground text-xs break-words'>
@@ -145,7 +148,7 @@ export function Lesson({ lesson, width = 350, animationDelay, hideTeacher = fals
               </span>
             </div>
           ) : <span />}
-          {Boolean(lesson.resources.length) && (
+          {hasAnyMaterials && (
             <Button onClick={handleOpenResources} className="min-h-[44px] w-full sm:w-auto"><AiOutlineFolderView />&nbsp;Материалы</Button>
           )}
         </CardFooter>
@@ -154,7 +157,8 @@ export function Lesson({ lesson, width = 350, animationDelay, hideTeacher = fals
         open={resourcesDialogOpened} 
         onClose={() => setResourcesDialogOpened(false)}
         teacherName={('teacher' in lesson && lesson.teacher) ? lesson.teacher : undefined}
-        resources={lesson.resources} 
+        resources={lesson.resources}
+        homework={lesson.homework}
       />
     </Card>
   )
