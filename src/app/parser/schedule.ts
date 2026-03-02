@@ -256,6 +256,326 @@ function parseWeekNavigation(document: Document, currentWeekNumber: number, curr
   return weeks.sort((a, b) => a.weekNumber - b.weekNumber)
 }
 
+// Парсер расписания групп (mn=2).
+// Идет по строкам основной таблицы расписания и ищет заголовки дней (<h3>Понедельник 02.03.2026 / 8 неделя</h3>),
+// а затем парсит строки с парами, опираясь на уже существующий parseLesson.
+function parseGroupSchedule(
+  document: Document,
+  groupName: string,
+  url?: string,
+  shouldParseWeekNavigation: boolean = true
+): ParseResult {
+  const tables = Array.from(document.querySelectorAll('table'))
+
+  // Находим таблицу, в которой есть название группы и заголовок "Дисциплина, преподаватель"
+  const table = tables.find((t) => {
+    const text = t.textContent || ''
+    return text.includes(groupName) && text.includes('Дисциплина, преподаватель')
+  })
+
+  if (!table) {
+    logDebug('parseGroupSchedule: table not found', { groupName, tablesCount: tables.length })
+    throw new Error(`Table not found for group ${groupName}`)
+  }
+
+  const allRows = Array.from(table.querySelectorAll('tr'))
+
+  const days: Day[] = []
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  let dayInfo: Day = {}
+  let dayLessons: Lesson[] = []
+  let currentWeekNumber: number | undefined
+
+  for (const row of allRows) {
+    const rowText = row.textContent?.trim() || ''
+    if (!rowText) {
+      continue
+    }
+
+    const looksLikeTableHeader = /№ пары|Время занятий|Дисциплина, преподаватель/i.test(rowText)
+    const h3Element = row.querySelector('h3')
+    const rawTitle = h3Element?.textContent?.trim() || ''
+    const isDayTitleRow =
+      /(Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}\s*\/\s*\d+\s+неделя/i.test(
+        rawTitle
+      )
+
+    // Заголовок дня
+    if (isDayTitleRow) {
+      // Сохраняем предыдущий день только если в нем есть пары,
+      // иначе получаются дубликаты заголовков без занятий.
+      if ('date' in dayInfo && dayLessons.length > 0) {
+        days.push({ ...dayInfo, lessons: dayLessons })
+        dayLessons = []
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        dayInfo = {}
+      }
+
+      try {
+        const { date, weekNumber } = dayTitleParser(rawTitle)
+        dayInfo.date = date
+        dayInfo.weekNumber = weekNumber
+        if (!currentWeekNumber) {
+          currentWeekNumber = weekNumber
+        }
+      } catch (e) {
+        logDebug('parseGroupSchedule: failed to parse day title', { rawTitle, error: String(e) })
+      }
+
+      continue
+    }
+
+    // Пропускаем строку заголовков таблицы
+    if (looksLikeTableHeader) {
+      continue
+    }
+
+    const cells = Array.from(row.querySelectorAll(':scope > td'))
+    if (cells.length === 0) continue
+
+    const firstCellText = cells[0].textContent?.trim() || ''
+
+    // Строка пары: первая ячейка — номер (цифра)
+    if (/^\d+$/.test(firstCellText)) {
+      const hasDayContext = 'date' in dayInfo
+      if (!hasDayContext) {
+        // На всякий случай логируем, но не падаем
+        logDebug('parseGroupSchedule: lesson row without day context', {
+          rowPreview: rowText.substring(0, 100),
+        })
+        continue
+      }
+
+      const lesson = parseLesson(row, false)
+      if (lesson) {
+        dayLessons.push(lesson)
+      } else {
+        logDebug('parseGroupSchedule: failed to parse lesson', {
+          rowPreview: rowText.substring(0, 120),
+        })
+      }
+    }
+  }
+
+  // Добавляем последний день
+  if ('date' in dayInfo && dayLessons.length > 0) {
+    days.push({ ...dayInfo, lessons: dayLessons })
+  }
+
+  // Извлекаем wk из URL
+  const currentUrl = url || document.location?.href || ''
+  const wkMatch = currentUrl.match(/[?&]wk=(\d+)/)
+  let currentWk = wkMatch ? Number(wkMatch[1]) : undefined
+
+  let availableWeeks: WeekInfo[] | undefined
+
+  if (shouldParseWeekNavigation && currentWeekNumber) {
+    availableWeeks = parseWeekNavigation(document, currentWeekNumber, currentWk)
+
+    if (availableWeeks.length === 0 && currentWk) {
+      availableWeeks.push({ wk: currentWk, weekNumber: currentWeekNumber })
+    }
+
+    if (!currentWk && availableWeeks.length > 0) {
+      const currentWeekInList = availableWeeks.find((w) => w.weekNumber === currentWeekNumber)
+      if (currentWeekInList) {
+        currentWk = currentWeekInList.wk
+      } else {
+        currentWk = availableWeeks[0].wk
+      }
+    }
+  }
+
+  return {
+    days,
+    currentWk,
+    availableWeeks,
+  }
+}
+
+// Специальный парсер для страницы расписания преподавателя (mn=3),
+// максимально повторяющий логику python‑парсера из `py-teacher/app.py`.
+function parseTeacherSchedule(
+  document: Document,
+  url?: string,
+  shouldParseWeekNavigation: boolean = true
+): ParseResult {
+  const dayAnchors = Array.from(document.querySelectorAll('a.t_wth'))
+
+  const days: Day[] = []
+  let currentWeekNumber: number | undefined
+
+  for (const anchor of dayAnchors) {
+    const dayText = anchor.textContent?.trim() || ''
+    // Пример: "Понедельник 02.03.2026/8 неделя"
+    const m = dayText.match(/^(\S+)\s*(\d{2}\.\d{2}\.\d{4})\/(\d+)\s+неделя/i)
+    if (!m) {
+      continue
+    }
+
+    const [, , dateStr, weekNumStr] = m
+
+    const [day, month, year] = dateStr.split('.').map(Number)
+    const date = new Date(year, month - 1, day, 12)
+    const weekNumber = Number(weekNumStr)
+
+    if (!currentWeekNumber) {
+      currentWeekNumber = weekNumber
+    }
+
+    // Ищем родительскую таблицу с парами (cellpadding="1")
+    let parent: Element | null = anchor as Element
+    for (let i = 0; i < 10 && parent; i++) {
+      parent = parent.parentElement
+      if (parent && parent.tagName === 'TABLE' && parent.getAttribute('cellpadding') === '1') {
+        break
+      }
+    }
+
+    const lessons: Lesson[] = []
+
+    if (parent && parent.tagName === 'TABLE') {
+      const rows = Array.from(parent.querySelectorAll(':scope > tbody > tr, :scope > tr'))
+      for (const row of rows) {
+        const cells = Array.from(row.querySelectorAll(':scope > td'))
+        if (cells.length !== 4) continue
+
+        const numText = cells[0].textContent?.trim() || ''
+        if (!/^\d+$/.test(numText)) continue
+
+        const timeText = cells[1].textContent?.trim() || ''
+        if (!timeText) continue
+        const [startTimeRaw, endTimeRaw] = timeText.split('–')
+        const startTime = (startTimeRaw || '').trim()
+        const endTime = (endTimeRaw || '').trim()
+
+        const subjCell = cells[2]
+        const roomText = cells[3].textContent?.trim() || ''
+
+        // Извлекаем предмет, аудиторию и тип занятия по логике python‑парсера
+        let subject = ''
+        let group = ''
+        let groupShort = ''
+        let lessonType = ''
+        let location = ''
+
+        const bold = subjCell.querySelector('b')
+        if (bold) {
+          subject = bold.textContent?.trim() || ''
+        }
+
+        const fontGreen = subjCell.querySelector('font.t_green_10')
+        if (fontGreen) {
+          location = fontGreen.textContent?.trim() || ''
+        }
+
+        // Всё, что идёт после <b> до <font>, это строка с группой и типом занятия
+        let raw = ''
+        if (bold) {
+          let node: ChildNode | null = bold.nextSibling
+          while (node) {
+            const nodeType = (node as any).nodeType
+            // 1 — Element, 3 — Text в DOM API
+            if (nodeType === 1) {
+              const el = node as Element
+              if (el.tagName === 'FONT') {
+                break
+              }
+              if (el.tagName === 'BR') {
+                node = el.nextSibling
+                continue
+              }
+              raw += el.textContent?.trim() || ''
+            } else if (nodeType === 3) {
+              raw += (node.textContent || '').trim()
+            }
+            node = node.nextSibling
+          }
+        }
+
+        raw = raw.trim()
+
+        if (raw) {
+          group = raw
+          const mGrp = raw.match(/\(([^)]+)\)/)
+          if (mGrp) {
+            groupShort = mGrp[1]
+          }
+
+          const idx = raw.indexOf(')')
+          const after = idx >= 0 ? raw.slice(idx + 1).trim() : ''
+          if (after) {
+            const unwrapped = after.replace(/^\((.+)\)$/, '$1').trim()
+            const inner = unwrapped.match(/\(([^()]+)\)\s*$/)
+            lessonType = inner ? inner[1] : unwrapped
+          }
+        }
+
+        const lesson: Lesson = {
+          time: {
+            start: startTime || '',
+            end: endTime || '',
+          },
+          type: lessonType,
+          topic: '',
+          resources: [],
+          homework: '',
+          subject: subject || groupShort || group || roomText,
+        }
+
+        if (location || roomText) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-expect-error — расширяем union тип за счет наличия place
+          lesson.place = {
+            address: location || '',
+            classroom: roomText || '',
+          }
+        }
+
+        lessons.push(lesson)
+      }
+    }
+
+    days.push({
+      date,
+      weekNumber,
+      lessons,
+    })
+  }
+
+  // Извлекаем wk из URL
+  const currentUrl = url || document.location?.href || ''
+  const wkMatch = currentUrl.match(/[?&]wk=(\d+)/)
+  let currentWk = wkMatch ? Number(wkMatch[1]) : undefined
+
+  let availableWeeks: WeekInfo[] | undefined
+
+  if (shouldParseWeekNavigation && currentWeekNumber) {
+    availableWeeks = parseWeekNavigation(document, currentWeekNumber, currentWk)
+
+    if (availableWeeks.length === 0 && currentWk) {
+      availableWeeks.push({ wk: currentWk, weekNumber: currentWeekNumber })
+    }
+
+    if (!currentWk && availableWeeks.length > 0) {
+      const currentWeekInList = availableWeeks.find(w => w.weekNumber === currentWeekNumber)
+      if (currentWeekInList) {
+        currentWk = currentWeekInList.wk
+      } else {
+        currentWk = availableWeeks[0].wk
+      }
+    }
+  }
+
+  return {
+    days,
+    currentWk,
+    availableWeeks,
+  }
+}
+
 const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson | null => {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error
@@ -694,8 +1014,28 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
   }
 }
 
-export function parsePage(document: Document, groupName: string, url?: string, shouldParseWeekNavigation: boolean = true, isTeacherSchedule: boolean = false): ParseResult {
-  const tables = Array.from(document.querySelectorAll('body > table'))
+export function parsePage(
+  document: Document,
+  groupName: string,
+  url?: string,
+  shouldParseWeekNavigation: boolean = true,
+  isTeacherSchedule: boolean = false
+): ParseResult {
+  // Для расписания преподавателей используем отдельный, более надежный парсер,
+  // основанный на уже отлаженной python‑версии.
+  if (isTeacherSchedule) {
+    return parseTeacherSchedule(document, url, shouldParseWeekNavigation)
+  }
+
+  // Для расписания групп используем отдельный парсер, который опирается на структуру
+  // таблицы с заголовками дней (<h3>Понедельник 02.03.2026 / 8 неделя</h3>)
+  // и строки с номерами пар.
+  return parseGroupSchedule(document, groupName, url, shouldParseWeekNavigation)
+
+  // Ищем все таблицы на странице, а не только прямых потомков body.
+  // На сайте колледжа разметка может меняться (таблицу расписания могут оборачивать в <div>, <center> и т.п.),
+  // поэтому ограничение 'body > table' ломало парсинг, когда структура слегка поменялась.
+  const tables = Array.from(document.querySelectorAll('table'))
   
   // Пытаемся найти таблицу разными способами
   let table: Element | undefined
