@@ -525,6 +525,9 @@ function parseTeacherSchedule(
           subject: subject || groupShort || group || roomText,
         }
 
+        // Если нет предмета и группы, это пустая пара
+        if (!subject && !groupShort && !group) continue
+
         if (location || roomText) {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-expect-error — расширяем union тип за счет наличия place
@@ -544,6 +547,9 @@ function parseTeacherSchedule(
       lessons,
     })
   }
+
+  // Фильтруем пустые дни для преподавателей
+  const filteredDays = days.filter(day => day.lessons.length > 0)
 
   // Извлекаем wk из URL
   const currentUrl = url || document.location?.href || ''
@@ -570,7 +576,7 @@ function parseTeacherSchedule(
   }
 
   return {
-    days,
+    days: filteredDays,
     currentWk,
     availableWeeks,
   }
