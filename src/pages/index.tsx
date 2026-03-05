@@ -179,17 +179,18 @@ export default function HomePage(props: HomePageProps) {
                     </CardHeader>
                     {isOpen && (
                       <CardContent>
-                        <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                           {courseGroups.map(({ id, name }, groupIndex) => {
                             return (
                               <div
                                 key={id}
                                 className="stagger-card"
                               >
-                                <Link href={`/${id}`}>
+                                <Link href={`/${id}`} className="block">
                                   <Button
                                     variant="outline"
-                                    className="w-full justify-center h-auto py-3 px-2 sm:px-4 text-sm sm:text-base whitespace-nowrap"
+                                    className="w-full justify-center h-auto py-3 px-2 sm:px-4 text-sm sm:text-base h-auto min-h-[48px] whitespace-normal"
+                                    title={name}
                                   >
                                     {name}
                                   </Button>
@@ -318,8 +319,19 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
   }
 
   // Сортируем группы внутри каждого курса по имени
+  // Группы начинающиеся с "(" (заочка) перемещаем в конец
   for (const course in groupsByCourse) {
-    groupsByCourse[Number(course)].sort((a, b) => a.name.localeCompare(b.name))
+    groupsByCourse[Number(course)].sort((a, b) => {
+      const aIsZaoch = a.name.startsWith('(')
+      const bIsZaoch = b.name.startsWith('(')
+      
+      // Если одна из групп заочка, а другая нет - заочку вниз
+      if (aIsZaoch && !bIsZaoch) return 1
+      if (!aIsZaoch && bIsZaoch) return -1
+      
+      // Иначе сортируем по имени
+      return a.name.localeCompare(b.name)
+    })
   }
 
   return {
