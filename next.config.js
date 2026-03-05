@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path')
+
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
@@ -13,6 +15,13 @@ const nextConfig = {
         path: false,
       }
     }
+    
+    // Явно настраиваем resolve alias для path aliases
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, 'src'),
+    }
+    
     return config
   },
   turbopack: {
