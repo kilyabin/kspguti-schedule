@@ -242,11 +242,13 @@ if [ -d "$INSTALL_DIR/.next/standalone" ]; then
     # Copy public directory to standalone (always update)
     if [ -d "$INSTALL_DIR/public" ]; then
         echo -e "${YELLOW}Copying public directory to standalone...${NC}"
+        rm -rf "$INSTALL_DIR/.next/standalone/public" 2>/dev/null || true
         cp -r "$INSTALL_DIR/public" "$INSTALL_DIR/.next/standalone/public" 2>/dev/null || true
     fi
     # Copy .next/static to standalone/.next/static (always update)
     if [ -d "$INSTALL_DIR/.next/static" ]; then
         echo -e "${YELLOW}Copying .next/static to standalone...${NC}"
+        rm -rf "$INSTALL_DIR/.next/standalone/.next/static" 2>/dev/null || true
         mkdir -p "$INSTALL_DIR/.next/standalone/.next"
         cp -r "$INSTALL_DIR/.next/static" "$INSTALL_DIR/.next/standalone/.next/static" 2>/dev/null || true
     else
