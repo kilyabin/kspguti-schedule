@@ -251,6 +251,7 @@ export function getAllTeachers(): TeachersData {
     }
   }
 
+  console.log(`[Database] getAllTeachers: found ${Object.keys(teachers).length} teachers`)
   return teachers
 }
 
@@ -590,6 +591,48 @@ function migrateFromJSON(): void {
       console.log('Default password "ksadmin" initialized')
     } catch (err) {
       console.error('Error hashing default password:', err)
+    }
+  }
+
+  // Мигрируем преподавателей из teachers.ts, если БД пустая
+  const teachersCount = database.prepare('SELECT COUNT(*) as count FROM teachers').get() as { count: number }
+  if (teachersCount.count === 0) {
+    try {
+      // Пытаемся импортировать преподавателей из teachers.ts
+      const possiblePaths = [
+        path.join(process.cwd(), 'src/shared/data/teachers.ts'),
+        path.join(process.cwd(), '.next/standalone/src/shared/data/teachers.ts'),
+        path.join(process.cwd(), 'teachers.ts')
+      ]
+
+      for (const filePath of possiblePaths) {
+        if (fs.existsSync(filePath)) {
+          console.log(`Migrating teachers from ${filePath}...`)
+          // Читаем файл и извлекаем JSON массив
+          const fileContents = fs.readFileSync(filePath, 'utf8')
+          const jsonMatch = fileContents.match(/export const teachers = (\[[\s\S]*?\])/)
+          if (jsonMatch && jsonMatch[1]) {
+            const teachersArray = JSON.parse(jsonMatch[1]) as Array<{ name: string }>
+            
+            const insertStmt = database.prepare('INSERT INTO teachers (id, parseId, name) VALUES (?, ?, ?)')
+            const transaction = database.transaction((teachers: Array<{ name: string }>) => {
+              teachers.forEach((teacher, index) => {
+                if (teacher.name) {
+                  // Используем индекс как parseId, так как в teachers.ts нет parseId
+                  const id = String(index + 1)
+                  insertStmt.run(id, index + 1, teacher.name)
+                }
+              })
+            })
+
+            transaction(teachersArray)
+            console.log(`Teachers migrated from teachers.ts: ${teachersArray.length} teachers`)
+            break
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error migrating teachers from teachers.ts:', error)
     }
   }
 }

@@ -88,11 +88,17 @@ async function handler(
       ...(validatedDebug !== undefined && { debug: validatedDebug })
     }
 
-    saveSettings(settings)
-    // Сбрасываем кеш и загружаем свежие настройки для подтверждения
-    clearSettingsCache()
-    const savedSettings = loadSettings(true)
-    res.status(200).json({ success: true, settings: savedSettings })
+    try {
+      saveSettings(settings)
+      // Сбрасываем кеш и загружаем свежие настройки для подтверждения
+      clearSettingsCache()
+      const savedSettings = loadSettings(true)
+      res.status(200).json({ success: true, settings: savedSettings })
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      res.status(500).json({ error: `Failed to save settings: ${errorMessage}` })
+    }
     return
   }
 }
