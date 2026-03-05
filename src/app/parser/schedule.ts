@@ -281,9 +281,7 @@ function parseGroupSchedule(
   const allRows = Array.from(table.querySelectorAll('tr'))
 
   const days: Day[] = []
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  let dayInfo: Day = {}
+  let dayInfo: Partial<Day> = {}
   let dayLessons: Lesson[] = []
   let currentWeekNumber: number | undefined
 
@@ -306,10 +304,8 @@ function parseGroupSchedule(
       // Сохраняем предыдущий день только если в нем есть пары,
       // иначе получаются дубликаты заголовков без занятий.
       if ('date' in dayInfo && dayLessons.length > 0) {
-        days.push({ ...dayInfo, lessons: dayLessons })
+        days.push({ ...dayInfo, lessons: dayLessons } as Day)
         dayLessons = []
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         dayInfo = {}
       }
 
@@ -361,7 +357,7 @@ function parseGroupSchedule(
 
   // Добавляем последний день
   if ('date' in dayInfo && dayLessons.length > 0) {
-    days.push({ ...dayInfo, lessons: dayLessons })
+    days.push({ ...dayInfo, lessons: dayLessons } as Day)
   }
 
   // Извлекаем wk из URL
@@ -529,8 +525,6 @@ function parseTeacherSchedule(
         if (!subject && !groupShort && !group) continue
 
         if (location || roomText) {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-expect-error — расширяем union тип за счет наличия place
           lesson.place = {
             address: location || '',
             classroom: roomText || '',
@@ -583,9 +577,12 @@ function parseTeacherSchedule(
 }
 
 const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson | null => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  const lesson: LessonObject = {}
+  const lesson: Partial<Lesson> & { fallbackDiscipline?: string, teacher?: string, place?: { address: string, classroom: string }, subject?: string } = {
+    resources: [],
+    homework: '',
+    type: '',
+    time: { start: '', end: '' }
+  }
 
   try {
     const cells = Array.from(row.querySelectorAll(':scope > td'))
@@ -998,13 +995,12 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
     }
 
     // Колонка "Ресурс"
-    lesson.resources = []
     if (cells[5]) {
       Array.from(cells[5].querySelectorAll('a')).forEach(a => {
         const title = a.textContent?.trim()
         const url = a.getAttribute('href')
         if (title && url) {
-          lesson.resources.push({
+          lesson.resources!.push({
             type: 'link',
             title,
             url,
@@ -1014,7 +1010,6 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
     }
 
     // Колонка "Задание для выполнения"
-    lesson.homework = ''
     if (cells[6]) {
       const hwCell = cells[6]
       const rawText = hwCell.textContent?.replace(/\s+/g, ' ').trim() || ''
@@ -1027,7 +1022,7 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
         const title = a.textContent?.trim()
         const url = a.getAttribute('href')
         if (title && url) {
-          lesson.resources.push({
+          lesson.resources!.push({
             type: 'link',
             title,
             url,
@@ -1036,7 +1031,7 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
       })
     }
 
-    return lesson
+    return lesson as Lesson
   } catch(e) {
     console.error('Error while parsing lesson in table', e, row.textContent?.trim())
     return null
@@ -1151,23 +1146,24 @@ export function parsePage(
     throw new Error(`Table not found for ${groupName}. Found ${tables.length} tables on the page.`)
   }
 
-  logDebug('parsePage: selected table', { groupName, rows: table.querySelectorAll('tr').length })
-  
+  // К этому моменту table определен (иначе была бы ошибка выше)
+  const selectedTable = table!
+
+  logDebug('parsePage: selected table', { groupName, rows: selectedTable.querySelectorAll('tr').length })
+
   // Пытаемся найти tbody или использовать прямые children таблицы
   let tbody: HTMLTableSectionElement | null = null
-  if (table) {
-    const tbodyElement = table.querySelector('tbody')
-    if (tbodyElement) {
-      tbody = tbodyElement as HTMLTableSectionElement
-    } else if (table.children.length > 0 && table.children[0].tagName === 'TBODY') {
-      tbody = table.children[0] as HTMLTableSectionElement
-    }
-    
-    if (!tbody && table.children.length === 0) {
-      throw new Error(`Table structure is invalid for ${groupName}`)
-    }
+  const tbodyElement = selectedTable.querySelector('tbody')
+  if (tbodyElement) {
+    tbody = tbodyElement as HTMLTableSectionElement
+  } else if (selectedTable.children.length > 0 && selectedTable.children[0].tagName === 'TBODY') {
+    tbody = selectedTable.children[0] as HTMLTableSectionElement
   }
-  
+
+  if (!tbody && selectedTable.children.length === 0) {
+    throw new Error(`Table structure is invalid for ${groupName}`)
+  }
+
   // Структура таблицы расписания с lk.ks.psuti.ru (mn=2&obj=ID группы):
   // allRows[0] — название группы в одной ячейке (colspan=7);
   // allRows[1] — пустая строка-разделитель (одна td colspan=7);
@@ -1175,25 +1171,24 @@ export function parsePage(
   // Заголовок дня: одна <tr> с одной <td colspan=7>, внутри вложенная таблица с <h3>Понедельник DD.MM.YYYY / N неделя</h3>.
   // Заголовок колонок: <tr> с 7 <td> — «№ пары», «Время занятий», «Способ», «Дисциплина, преподаватель», «Тема занятия», «Ресурс», «Задание для выполнения».
   // Строка пары: 7 <td> — номер, время (08:00 – 09:30), способ, ячейка с предметом/преподавателем/местом (subject + <br> + teacher + <font> адрес, Кабинет), тема, ресурсы, задание.
-  const allRows = tbody 
-    ? Array.from(tbody.querySelectorAll('tr'))
-    : Array.from(table.querySelectorAll('tr'))
+  const allRows = tbody
+    ? Array.from(tbody!.querySelectorAll('tr'))
+    : Array.from(selectedTable.querySelectorAll('tr'))
   
   const rows = allRows.slice(2)
   logDebug('parsePage: rows to parse', { groupName, rowsCount: rows.length, firstRows: rows.slice(0, 5).map(r => r.textContent?.trim().substring(0, 50)) })
 
-  const days = []
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  let dayInfo: Day = {}
+  const days: Day[] = []
+  let dayInfo: Partial<Day> = {}
   let dayLessons: Lesson[] = []
   let previousRowIsDayTitle = false
   let currentWeekNumber: number | undefined
   
   // Пытаемся извлечь текущий wk из URL
   const currentUrl = url || document.location?.href || ''
-  const wkMatch = currentUrl.match(/[?&]wk=(\d+)/)
-  const currentWk = wkMatch ? Number(wkMatch[1]) : undefined
+  const wkMatchResult = currentUrl.match(/[?&]wk=(\d+)/)
+  const wkMatchValue = wkMatchResult?.[1]
+  const currentWk = wkMatchValue ? Number(wkMatchValue) : undefined
   
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
@@ -1211,10 +1206,8 @@ export function parsePage(
 
     // Если встречаем новый день, сохраняем предыдущий
     if (isNewDayTitle && 'date' in dayInfo) {
-      days.push({ ...dayInfo, lessons: dayLessons })
+      days.push({ ...dayInfo, lessons: dayLessons } as Day)
       dayLessons = []
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
       dayInfo = {}
       previousRowIsDayTitle = false
     }
@@ -1223,10 +1216,8 @@ export function parsePage(
       // Сохраняем день при разделителе только если есть уроки — иначе пустая строка
       // между заголовком дня и строкой «№ пары / Время» сбрасывала контекст и все пары пропускались
       if ('date' in dayInfo && dayLessons.length > 0) {
-        days.push({ ...dayInfo, lessons: dayLessons })
+        days.push({ ...dayInfo, lessons: dayLessons } as Day)
         dayLessons = []
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         dayInfo = {}
       }
       previousRowIsDayTitle = false
@@ -1242,9 +1233,10 @@ export function parsePage(
       
       // Извлекаем только часть до переноса строки или до начала следующего контента
       // Заголовок дня может быть в начале строки, а дальше идет другой контент
-      const dayTitleMatch = dayTitleText.match(/((Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}\s*\/\s*\d+\s+неделя)/i)
-      if (dayTitleMatch) {
-        dayTitleText = dayTitleMatch[1]
+      const dayTitleMatchResult = dayTitleText.match(/((Понедельник|Вторник|Среда|Четверг|Пятница|Суббота|Воскресенье)\s+\d{1,2}\.\d{1,2}\.\d{4}\s*\/\s*\d+\s+неделя)/i)
+      const dayTitleMatchValue = dayTitleMatchResult?.[1]!
+      if (dayTitleMatchValue) {
+        dayTitleText = dayTitleMatchValue
       }
       
       if (!dayTitleText) {
@@ -1300,15 +1292,16 @@ export function parsePage(
         }
         
         const lesson = parseLesson(row, isTeacherSchedule)
-        if(lesson !== null) {
+        if (lesson) {
           let lessonName = 'unknown'
-          if ('subject' in lesson && lesson.subject) {
-            lessonName = lesson.subject
-          } else if ('fallbackDiscipline' in lesson && lesson.fallbackDiscipline) {
-            lessonName = lesson.fallbackDiscipline
+          const lessonAny = lesson as any
+          if ('subject' in lessonAny && lessonAny.subject) {
+            lessonName = lessonAny.subject
+          } else if ('fallbackDiscipline' in lessonAny && lessonAny.fallbackDiscipline) {
+            lessonName = lessonAny.fallbackDiscipline
           }
           logDebug('parsePage: parsed lesson', { lessonName })
-          dayLessons.push(lesson)
+          dayLessons.push(lesson as Lesson)
         } else {
           // Логируем строки, которые не распарсились как уроки
           logDebug('parsePage: failed to parse lesson from row', { rowPreview: rowText.substring(0, 100) })
@@ -1329,29 +1322,29 @@ export function parsePage(
   // Добавляем последний день, если он не был добавлен
   if ('date' in dayInfo) {
     logDebug('parsePage: adding final day', { lessonsCount: dayLessons.length })
-    days.push({ ...dayInfo, lessons: dayLessons })
+    days.push({ ...dayInfo, lessons: dayLessons } as Day)
   }
   
   logDebug('parsePage: total days parsed', { daysCount: days.length })
 
   // Парсим навигацию по неделям только если включена навигация
-  let availableWeeks: WeekInfo[] | undefined
+  let availableWeeks: WeekInfo[] = []
   let finalCurrentWk = currentWk
-  
-  if (shouldParseWeekNavigation && currentWeekNumber) {
-    availableWeeks = parseWeekNavigation(document, currentWeekNumber, currentWk)
-    
+
+  if (shouldParseWeekNavigation && currentWeekNumber != null) {
+    availableWeeks = parseWeekNavigation(document, currentWeekNumber!, currentWk)
+
     // Если не нашли ссылки, но есть текущий wk, добавляем текущую неделю
-    if (availableWeeks.length === 0 && currentWk) {
-      availableWeeks.push({ wk: currentWk, weekNumber: currentWeekNumber })
+    if (availableWeeks.length === 0 && currentWk != null) {
+      availableWeeks.push({ wk: currentWk!, weekNumber: currentWeekNumber! })
     }
-    
+
     // Если currentWk не определен, но нашли недели, пытаемся определить текущую
-    if (!currentWk && availableWeeks.length > 0) {
+    if (currentWk == null && availableWeeks.length > 0) {
       // Ищем неделю с weekNumber равным currentWeekNumber
-      const currentWeekInList = availableWeeks.find(w => w.weekNumber === currentWeekNumber)
+      const currentWeekInList = availableWeeks.find(w => w.weekNumber === currentWeekNumber!)
       if (currentWeekInList) {
-        finalCurrentWk = currentWeekInList.wk
+        finalCurrentWk = currentWeekInList!.wk
       } else {
         // Если не нашли точное совпадение, берем первую неделю как текущую
         finalCurrentWk = availableWeeks[0].wk
