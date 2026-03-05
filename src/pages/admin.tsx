@@ -522,19 +522,21 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
                     disabled={loading}
                   />
                 </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <div className="font-semibold">Кнопка "Добавить группу"</div>
-                    <div className="text-sm text-muted-foreground">
-                      Отображать кнопку "Добавить группу" на главной странице
+                {!isKspsutiMode && (
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <div className="font-semibold">Кнопка "Добавить группу"</div>
+                      <div className="text-sm text-muted-foreground">
+                        Отображать кнопку "Добавить группу" на главной странице
+                      </div>
                     </div>
+                    <ToggleSwitch
+                      checked={settings.showAddGroupButton ?? true}
+                      onChange={(checked) => handleUpdateSettings({ ...settings, showAddGroupButton: checked })}
+                      disabled={loading}
+                    />
                   </div>
-                  <ToggleSwitch
-                    checked={settings.showAddGroupButton ?? true}
-                    onChange={(checked) => handleUpdateSettings({ ...settings, showAddGroupButton: checked })}
-                    disabled={loading}
-                  />
-                </div>
+                )}
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <div className="font-semibold">Кнопка "Преподаватели"</div>

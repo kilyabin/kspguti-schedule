@@ -17,7 +17,7 @@ import Link from 'next/link'
 import Head from 'next/head'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/shared/utils'
-import { GITHUB_REPO_URL, TELEGRAM_CONTACT_URL } from '@/shared/constants/urls'
+import { GITHUB_REPO_URL, TELEGRAM_CONTACT_URL, SCHED_MODE } from '@/shared/constants/urls'
 import { MdAdd } from 'react-icons/md'
 import { FaGithub } from 'react-icons/fa'
 import { BsTelegram } from 'react-icons/bs'
@@ -327,7 +327,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
       vacationModeEnabled: false,
       groups,
       groupsByCourse,
-      showAddGroupButton: settings.showAddGroupButton ?? true,
+      showAddGroupButton: SCHED_MODE === 'kspsuti' ? false : (settings.showAddGroupButton ?? true),
       showTeachersButton: settings.showTeachersButton ?? true
     } as NormalModeProps
   }
