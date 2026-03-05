@@ -9,7 +9,6 @@ Group=www-data
 WorkingDirectory=/opt/kspguti-schedule/.next/standalone
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1
-Environment=DATABASE_DIR=/opt/kspguti-schedule
 Environment=PORT=3000
 Environment=HOSTNAME=0.0.0.0
 # Uncomment and set your environment variables:

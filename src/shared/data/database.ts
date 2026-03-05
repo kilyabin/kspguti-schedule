@@ -9,37 +9,30 @@ import type { AppSettings } from './settings-loader'
 function getDatabaseDir(): string {
   // Если указан путь через переменную окружения, используем его
   if (process.env.DATABASE_DIR) {
-    console.log(`[Database] Using DATABASE_DIR from env: ${process.env.DATABASE_DIR}`)
     return process.env.DATABASE_DIR
   }
-
+  
   // В production режиме (standalone) используем стандартный путь
   const cwd = process.cwd()
-  console.log(`[Database] process.cwd(): ${cwd}`)
-
+  
   // Если мы в .next/standalone, поднимаемся на 2 уровня вверх к корню проекта
   if (cwd.includes('.next/standalone')) {
     // В standalone режиме process.cwd() = /opt/kspguti-schedule/.next/standalone
     // Нужно подняться до /opt/kspguti-schedule
     const standaloneMatch = cwd.match(/^(.+?)\/\.next\/standalone/)
     if (standaloneMatch && standaloneMatch[1]) {
-      console.log(`[Database] Detected standalone mode, using: ${standaloneMatch[1]}`)
       return standaloneMatch[1]
     }
     // Альтернативный способ: подняться на 2 уровня вверх
-    const parentDir = path.resolve(cwd, '..', '..')
-    console.log(`[Database] Fallback to parent directory: ${parentDir}`)
-    return parentDir
+    return path.resolve(cwd, '..', '..')
   }
-
+  
   // Проверяем стандартный путь для production
   if (fs.existsSync('/opt/kspguti-schedule')) {
-    console.log('[Database] Using /opt/kspguti-schedule')
     return '/opt/kspguti-schedule'
   }
-
+  
   // В development используем текущую директорию
-  console.log(`[Database] Using cwd: ${cwd}`)
   return cwd
 }
 
@@ -51,8 +44,11 @@ const DEFAULT_PASSWORD = 'ksadmin'
 // Путь к старой базе данных (для миграции)
 const OLD_DB_PATH = path.join(DATABASE_DIR, 'data', 'schedule-app.db')
 
-console.log(`[Database] DB_PATH: ${DB_PATH}`)
-console.log(`[Database] dbDir: ${path.dirname(DB_PATH)}`)
+// Создаем директорию db, если её нет
+const dbDir = path.dirname(DB_PATH)
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true })
+}
 
 // Миграция базы данных из data/ в db/ (если старая база существует)
 function migrateDatabaseLocation(): void {
@@ -60,7 +56,7 @@ function migrateDatabaseLocation(): void {
   if (fs.existsSync(DB_PATH)) {
     return
   }
-
+  
   // Если старая база существует, перемещаем её
   if (fs.existsSync(OLD_DB_PATH)) {
     try {
@@ -90,106 +86,31 @@ function migrateDatabaseLocation(): void {
 
 // Инициализация базы данных
 let db: Database.Database | null = null
-let dbInitAttempted = false
-let dbInitError: Error | null = null
 
 function getDatabase(): Database.Database {
-  // Если уже есть ошибка инициализации, выбрасываем её сразу
-  if (dbInitError) {
-    throw dbInitError
-  }
-
   if (db) {
     return db
-  }
-
-  // Защита от повторной инициализации при ошибке
-  if (dbInitAttempted) {
-    if (db) return db
-    throw new Error('Database initialization failed previously')
-  }
-
-  dbInitAttempted = true
-
-  console.log('[Database] Initializing database connection...')
-  console.log(`[Database] DB_PATH: ${DB_PATH}`)
-  console.log(`[Database] DB_PATH exists: ${fs.existsSync(DB_PATH)}`)
-  console.log(`[Database] process.cwd(): ${process.cwd()}`)
-  console.log(`[Database] DATABASE_DIR: ${DATABASE_DIR}`)
-
-  // Создаем директорию db, если её нет
-  const dbDir = path.dirname(DB_PATH)
-  console.log(`[Database] dbDir: ${dbDir}`)
-  console.log(`[Database] dbDir exists: ${fs.existsSync(dbDir)}`)
-
-  if (!fs.existsSync(dbDir)) {
-    console.log(`[Database] Creating directory: ${dbDir}`)
-    try {
-      fs.mkdirSync(dbDir, { recursive: true, mode: 0o755 })
-      console.log(`[Database] Directory created successfully`)
-    } catch (error) {
-      const errMsg = `Failed to create database directory ${dbDir}: ${error}`
-      console.error(`[Database] ${errMsg}`)
-      dbInitError = new Error(errMsg)
-      throw dbInitError
-    }
-  }
-
-  // Проверяем, можем ли записывать в директорию
-  try {
-    const testFile = path.join(dbDir, '.write-test-' + Date.now())
-    fs.writeFileSync(testFile, 'test', { mode: 0o644 })
-    fs.unlinkSync(testFile)
-    console.log('[Database] Directory is writable')
-  } catch (error) {
-    const errMsg = `Directory ${dbDir} is not writable: ${error}`
-    console.error(`[Database] ${errMsg}`)
-    dbInitError = new Error(errMsg)
-    throw new Error(errMsg)
   }
 
   // Выполняем миграцию расположения базы данных перед открытием
   migrateDatabaseLocation()
 
-  try {
-    console.log('[Database] Opening database...')
-    db = new Database(DB_PATH)
-    console.log('[Database] Database opened successfully')
+  db = new Database(DB_PATH)
 
-    // Проверяем, можем ли записывать
-    try {
-      db.exec('SELECT 1')
-      console.log('[Database] Database is writable')
-    } catch (error) {
-      const errMsg = `Database is not writable: ${(error as Error).message}`
-      console.error('[Database] ' + errMsg)
-      dbInitError = new Error(errMsg)
-      throw new Error(errMsg)
-    }
+  // Применяем современные настройки SQLite
+  db.pragma('journal_mode = WAL') // Write-Ahead Logging для лучшей производительности
+  db.pragma('synchronous = NORMAL') // Баланс между производительностью и надежностью
+  db.pragma('foreign_keys = ON') // Включение проверки внешних ключей
+  db.pragma('busy_timeout = 5000') // Таймаут для ожидания блокировок (5 секунд)
+  db.pragma('temp_store = MEMORY') // Хранение временных данных в памяти
+  db.pragma('mmap_size = 268435456') // Memory-mapped I/O (256MB)
+  db.pragma('cache_size = -64000') // Размер кеша в страницах (64MB)
 
-    // Применяем современные настройки SQLite
-    db.pragma('journal_mode = WAL') // Write-Ahead Logging для лучшей производительности
-    db.pragma('synchronous = NORMAL') // Баланс между производительностью и надежностью
-    db.pragma('foreign_keys = ON') // Включение проверки внешних ключей
-    db.pragma('busy_timeout = 5000') // Таймаут для ожидания блокировок (5 секунд)
-    db.pragma('temp_store = MEMORY') // Хранение временных данных в памяти
-    db.pragma('mmap_size = 268435456') // Memory-mapped I/O (256MB)
-    db.pragma('cache_size = -64000') // Размер кеша в страницах (64MB)
+  // Создаем таблицы, если их нет
+  initializeTables()
 
-    console.log('[Database] SQLite pragmas applied')
-
-    // Создаем таблицы, если их нет
-    initializeTables()
-
-    // Выполняем миграцию данных из JSON, если БД пустая
-    migrateFromJSON()
-
-    console.log('[Database] Database initialization complete')
-  } catch (error) {
-    console.error('[Database] Failed to initialize database:', error)
-    dbInitError = error as Error
-    throw error
-  }
+  // Выполняем миграцию данных из JSON, если БД пустая
+  migrateFromJSON()
 
   return db
 }
@@ -330,7 +251,6 @@ export function getAllTeachers(): TeachersData {
     }
   }
 
-  console.log(`[Database] getAllTeachers: found ${Object.keys(teachers).length} teachers`)
   return teachers
 }
 
@@ -670,48 +590,6 @@ function migrateFromJSON(): void {
       console.log('Default password "ksadmin" initialized')
     } catch (err) {
       console.error('Error hashing default password:', err)
-    }
-  }
-
-  // Мигрируем преподавателей из teachers.ts, если БД пустая
-  const teachersCount = database.prepare('SELECT COUNT(*) as count FROM teachers').get() as { count: number }
-  if (teachersCount.count === 0) {
-    try {
-      // Пытаемся импортировать преподавателей из teachers.ts
-      const possiblePaths = [
-        path.join(process.cwd(), 'src/shared/data/teachers.ts'),
-        path.join(process.cwd(), '.next/standalone/src/shared/data/teachers.ts'),
-        path.join(process.cwd(), 'teachers.ts')
-      ]
-
-      for (const filePath of possiblePaths) {
-        if (fs.existsSync(filePath)) {
-          console.log(`Migrating teachers from ${filePath}...`)
-          // Читаем файл и извлекаем JSON массив
-          const fileContents = fs.readFileSync(filePath, 'utf8')
-          const jsonMatch = fileContents.match(/export const teachers = (\[[\s\S]*?\])/)
-          if (jsonMatch && jsonMatch[1]) {
-            const teachersArray = JSON.parse(jsonMatch[1]) as Array<{ name: string }>
-            
-            const insertStmt = database.prepare('INSERT INTO teachers (id, parseId, name) VALUES (?, ?, ?)')
-            const transaction = database.transaction((teachers: Array<{ name: string }>) => {
-              teachers.forEach((teacher, index) => {
-                if (teacher.name) {
-                  // Используем индекс как parseId, так как в teachers.ts нет parseId
-                  const id = String(index + 1)
-                  insertStmt.run(id, index + 1, teacher.name)
-                }
-              })
-            })
-
-            transaction(teachersArray)
-            console.log(`Teachers migrated from teachers.ts: ${teachersArray.length} teachers`)
-            break
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error migrating teachers from teachers.ts:', error)
     }
   }
 }
