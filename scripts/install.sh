@@ -10,8 +10,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 INSTALL_DIR="/opt/kspguti-schedule"
-SERVICE_USER="www-data"
-SERVICE_GROUP="www-data"
+SERVICE_USER="sched-user"
+SERVICE_GROUP="sched-user"
 SERVICE_NAME="kspguti-schedule"
 NODE_VERSION="20"
 
