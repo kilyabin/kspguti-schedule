@@ -52,31 +52,7 @@ const DEFAULT_PASSWORD = 'ksadmin'
 const OLD_DB_PATH = path.join(DATABASE_DIR, 'data', 'schedule-app.db')
 
 console.log(`[Database] DB_PATH: ${DB_PATH}`)
-
-// Создаем директорию db, если её нет
-const dbDir = path.dirname(DB_PATH)
-console.log(`[Database] dbDir: ${dbDir}`)
-
-if (!fs.existsSync(dbDir)) {
-  console.log(`[Database] Creating directory: ${dbDir}`)
-  try {
-    fs.mkdirSync(dbDir, { recursive: true })
-    console.log(`[Database] Directory created successfully`)
-  } catch (error) {
-    console.error(`[Database] Failed to create directory ${dbDir}:`, error)
-    throw new Error(`Failed to create database directory: ${dbDir}`)
-  }
-}
-
-// Проверяем, можем ли записывать в директорию
-try {
-  const testFile = path.join(dbDir, '.write-test')
-  fs.writeFileSync(testFile, 'test')
-  fs.unlinkSync(testFile)
-  console.log('[Database] Directory is writable')
-} catch (error) {
-  console.error(`[Database] Directory ${dbDir} is not writable:`, error)
-}
+console.log(`[Database] dbDir: ${path.dirname(DB_PATH)}`)
 
 // Миграция базы данных из data/ в db/ (если старая база существует)
 function migrateDatabaseLocation(): void {
@@ -84,7 +60,7 @@ function migrateDatabaseLocation(): void {
   if (fs.existsSync(DB_PATH)) {
     return
   }
-  
+
   // Если старая база существует, перемещаем её
   if (fs.existsSync(OLD_DB_PATH)) {
     try {
@@ -114,15 +90,63 @@ function migrateDatabaseLocation(): void {
 
 // Инициализация базы данных
 let db: Database.Database | null = null
+let dbInitAttempted = false
+let dbInitError: Error | null = null
 
 function getDatabase(): Database.Database {
+  // Если уже есть ошибка инициализации, выбрасываем её сразу
+  if (dbInitError) {
+    throw dbInitError
+  }
+
   if (db) {
     return db
   }
 
+  // Защита от повторной инициализации при ошибке
+  if (dbInitAttempted) {
+    if (db) return db
+    throw new Error('Database initialization failed previously')
+  }
+
+  dbInitAttempted = true
+
   console.log('[Database] Initializing database connection...')
   console.log(`[Database] DB_PATH: ${DB_PATH}`)
   console.log(`[Database] DB_PATH exists: ${fs.existsSync(DB_PATH)}`)
+  console.log(`[Database] process.cwd(): ${process.cwd()}`)
+  console.log(`[Database] DATABASE_DIR: ${DATABASE_DIR}`)
+
+  // Создаем директорию db, если её нет
+  const dbDir = path.dirname(DB_PATH)
+  console.log(`[Database] dbDir: ${dbDir}`)
+  console.log(`[Database] dbDir exists: ${fs.existsSync(dbDir)}`)
+
+  if (!fs.existsSync(dbDir)) {
+    console.log(`[Database] Creating directory: ${dbDir}`)
+    try {
+      fs.mkdirSync(dbDir, { recursive: true, mode: 0o755 })
+      console.log(`[Database] Directory created successfully`)
+    } catch (error) {
+      const errMsg = `Failed to create database directory ${dbDir}: ${error}`
+      console.error(`[Database] ${errMsg}`)
+      dbInitError = new Error(errMsg)
+      throw dbInitError
+    }
+  }
+
+  // Проверяем, можем ли записывать в директорию
+  try {
+    const testFile = path.join(dbDir, '.write-test-' + Date.now())
+    fs.writeFileSync(testFile, 'test', { mode: 0o644 })
+    fs.unlinkSync(testFile)
+    console.log('[Database] Directory is writable')
+  } catch (error) {
+    const errMsg = `Directory ${dbDir} is not writable: ${error}`
+    console.error(`[Database] ${errMsg}`)
+    dbInitError = new Error(errMsg)
+    throw new Error(errMsg)
+  }
 
   // Выполняем миграцию расположения базы данных перед открытием
   migrateDatabaseLocation()
@@ -137,8 +161,10 @@ function getDatabase(): Database.Database {
       db.exec('SELECT 1')
       console.log('[Database] Database is writable')
     } catch (error) {
-      console.error('[Database] Database is not writable:', error)
-      throw new Error('Database is not writable: ' + (error as Error).message)
+      const errMsg = `Database is not writable: ${(error as Error).message}`
+      console.error('[Database] ' + errMsg)
+      dbInitError = new Error(errMsg)
+      throw new Error(errMsg)
     }
 
     // Применяем современные настройки SQLite
@@ -161,6 +187,7 @@ function getDatabase(): Database.Database {
     console.log('[Database] Database initialization complete')
   } catch (error) {
     console.error('[Database] Failed to initialize database:', error)
+    dbInitError = error as Error
     throw error
   }
 
