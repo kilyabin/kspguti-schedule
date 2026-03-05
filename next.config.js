@@ -4,6 +4,7 @@ const nextConfig = {
   output: 'standalone',
   generateEtags: false,
   allowedDevOrigins: ['192.168.1.10'],
+  // Не используем outputFileTracingRoot для корректной работы standalone режима
   webpack: (config, { isServer }) => {
     // Исключаем fs и path из клиентской сборки
     if (!isServer) {
