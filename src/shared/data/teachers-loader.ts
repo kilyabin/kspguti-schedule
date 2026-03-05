@@ -11,7 +11,7 @@ const CACHE_TTL_MS = 1000 * 60 // 1 минута
 export function loadTeachers(forceRefresh: boolean = false): TeachersData {
   const now = Date.now()
   const isCacheValid = cachedTeachers !== null && !forceRefresh && (now - cacheTimestamp) < CACHE_TTL_MS
-  
+
   if (isCacheValid && cachedTeachers !== null) {
     return cachedTeachers
   }
@@ -19,6 +19,7 @@ export function loadTeachers(forceRefresh: boolean = false): TeachersData {
   try {
     cachedTeachers = getAllTeachersFromDB()
     cacheTimestamp = now
+    console.log(`[TeachersLoader] Loaded ${Object.keys(cachedTeachers).length} teachers from database`)
     return cachedTeachers
   } catch (error) {
     console.error('Error loading teachers from database:', error)

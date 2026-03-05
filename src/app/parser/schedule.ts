@@ -421,12 +421,31 @@ function parseTeacherSchedule(
       currentWeekNumber = weekNumber
     }
 
-    // Ищем родительскую таблицу с парами (cellpadding="1")
+    // Ищем родительскую таблицу с парами
+    // Сначала пробуем найти по cellpadding="1"
     let parent: Element | null = anchor as Element
     for (let i = 0; i < 10 && parent; i++) {
       parent = parent.parentElement
       if (parent && parent.tagName === 'TABLE' && parent.getAttribute('cellpadding') === '1') {
         break
+      }
+    }
+
+    // Если не нашли по cellpadding, ищем просто ближайшую таблицу
+    if (!parent || parent.tagName !== 'TABLE') {
+      parent = anchor.closest('table')
+    }
+
+    // Если все еще не нашли, ищем таблицу рядом с якорем
+    if (!parent || parent.tagName !== 'TABLE') {
+      // Ищем следующую таблицу после якоря
+      let nextSibling: Node | null = anchor as Node
+      while (nextSibling) {
+        nextSibling = nextSibling.nextSibling
+        if (nextSibling && nextSibling.nodeType === 1 && (nextSibling as Element).tagName === 'TABLE') {
+          parent = nextSibling as Element
+          break
+        }
       }
     }
 
@@ -448,7 +467,8 @@ function parseTeacherSchedule(
         const endTime = (endTimeRaw || '').trim()
 
         const subjCell = cells[2]
-        const roomText = cells[3].textContent?.trim() || ''
+        // Проверяем наличие ячейки перед доступом к textContent
+        const roomText = cells[3]?.textContent?.trim() || ''
 
         // Извлекаем предмет, аудиторию и тип занятия по логике python‑парсера
         let subject = ''
@@ -457,19 +477,20 @@ function parseTeacherSchedule(
         let lessonType = ''
         let location = ''
 
-        const bold = subjCell.querySelector('b')
+        // Проверяем наличие subjCell перед поиском элементов
+        const bold = subjCell?.querySelector('b')
         if (bold) {
           subject = bold.textContent?.trim() || ''
         }
 
-        const fontGreen = subjCell.querySelector('font.t_green_10')
+        const fontGreen = subjCell?.querySelector('font.t_green_10')
         if (fontGreen) {
           location = fontGreen.textContent?.trim() || ''
         }
 
         // Всё, что идёт после <b> до <font>, это строка с группой и типом занятия
         let raw = ''
-        if (bold) {
+        if (bold && subjCell) {
           let node: ChildNode | null = bold.nextSibling
           while (node) {
             const nodeType = (node as any).nodeType
@@ -1048,7 +1069,24 @@ export function parsePage(
   // Для расписания преподавателей используем отдельный, более надежный парсер,
   // основанный на уже отлаженной python‑версии.
   if (isTeacherSchedule) {
-    return parseTeacherSchedule(document, url, shouldParseWeekNavigation)
+    try {
+      const result = parseTeacherSchedule(document, url, shouldParseWeekNavigation)
+      // Если парсер не нашел дней, пробуем fallback на parseGroupSchedule
+      if (result.days.length === 0) {
+        logDebug('parsePage: parseTeacherSchedule returned no days, trying fallback')
+        return parseGroupSchedule(document, groupName, url, shouldParseWeekNavigation)
+      }
+      return result
+    } catch (error) {
+      // При ошибке парсинга преподавателя, пробуем fallback
+      logDebug('parsePage: parseTeacherSchedule failed, trying fallback', { error })
+      try {
+        return parseGroupSchedule(document, groupName, url, shouldParseWeekNavigation)
+      } catch (fallbackError) {
+        // Если и fallback не сработал, выбрасываем оригинальную ошибку
+        throw error
+      }
+    }
   }
 
   // Для расписания групп используем отдельный парсер, который опирается на структуру
