@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { withAuth, ApiResponse } from '@/shared/utils/api-wrapper'
-import { loadGroups, saveGroups, clearGroupsCache, GroupsData } from '@/shared/data/groups-loader'
+import { loadGroups, saveGroups, GroupsData } from '@/shared/data/groups-loader'
 import { validateCourse } from '@/shared/utils/validation'
 import { SCHED_MODE } from '@/shared/constants/urls'
 
@@ -60,8 +60,7 @@ async function handler(
     }
 
     saveGroups(groups)
-    // Сбрасываем кеш и загружаем свежие данные из БД
-    clearGroupsCache()
+    // Загружаем свежие данные из БД (кеш уже сброшен в saveGroups)
     const updatedGroups = await loadGroups(true)
     res.status(200).json({ success: true, groups: updatedGroups })
     return
@@ -77,8 +76,7 @@ async function handler(
     delete groups[id]
 
     saveGroups(groups)
-    // Сбрасываем кеш и загружаем свежие данные из БД
-    clearGroupsCache()
+    // Загружаем свежие данные из БД (кеш уже сброшен в saveGroups)
     const updatedGroups = await loadGroups(true)
     res.status(200).json({ success: true, groups: updatedGroups })
     return

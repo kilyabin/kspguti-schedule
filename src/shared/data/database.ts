@@ -91,7 +91,7 @@ function migrateDatabaseLocation(): void {
 // Инициализация базы данных
 let db: Database.Database | null = null
 
-function getDatabase(): Database.Database {
+export function getDatabase(): Database.Database {
   if (db) {
     return db
   }
