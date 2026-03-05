@@ -1,24 +1,117 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { GetServerSideProps } from 'next'
 import { loadTeachers, TeachersData } from '@/shared/data/teachers-loader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shadcn/ui/card'
 import { Button } from '@/shadcn/ui/button'
+import { Input } from '@/shadcn/ui/input'
 import { ThemeSwitcher } from '@/features/theme-switch'
 import Link from 'next/link'
 import Head from 'next/head'
 import { GITHUB_REPO_URL } from '@/shared/constants/urls'
 import { FaGithub } from 'react-icons/fa'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Search } from 'lucide-react'
 
 type TeachersPageProps = {
   teachers: TeachersData
 }
 
+// Функция для нечеткого поиска (fuzzy search) с допустимыми ошибками
+function fuzzyMatch(query: string, text: string): boolean {
+  const queryLower = query.toLowerCase()
+  const textLower = text.toLowerCase()
+  
+  // Прямое вхождение
+  if (textLower.includes(queryLower)) {
+    return true
+  }
+  
+  // Разрешаем 1-2 ошибки в зависимости от длины запроса
+  const maxErrors = queryLower.length <= 3 ? 1 : 2
+  
+  // Проверяем расстояние Левенштейна для подстрок той же длины
+  if (hasCloseSubstring(textLower, queryLower, maxErrors)) {
+    return true
+  }
+  
+  // Нечеткий поиск: символы запроса должны идти в том же порядке
+  // с возможностью пропуска символов
+  let queryIndex = 0
+  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
+    if (textLower[i] === queryLower[queryIndex]) {
+      queryIndex++
+    }
+  }
+  
+  return queryIndex === queryLower.length
+}
+
+// Проверяет, есть ли в тексте подстрока, близкая к образцу
+function hasCloseSubstring(text: string, pattern: string, maxErrors: number): boolean {
+  const m = pattern.length
+  const n = text.length
+  
+  if (m > n) return false
+  
+  // Проверяем все подстроки длины m
+  for (let i = 0; i <= n - m; i++) {
+    const substring = text.slice(i, i + m)
+    const distance = levenshteinDistance(pattern, substring)
+    if (distance <= maxErrors) {
+      return true
+    }
+  }
+  
+  return false
+}
+
+// Вычисление расстояния Левенштейна (количество операций редактирования)
+function levenshteinDistance(str1: string, str2: string): number {
+  const m = str1.length
+  const n = str2.length
+  
+  // Создаем матрицу расстояний
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+  
+  // Инициализация первой строки и столбца
+  for (let i = 0; i <= m; i++) dp[i][0] = i
+  for (let j = 0; j <= n; j++) dp[0][j] = j
+  
+  // Заполнение матрицы
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1]
+      } else {
+        dp[i][j] = 1 + Math.min(
+          dp[i - 1][j],     // удаление
+          dp[i][j - 1],     // вставка
+          dp[i - 1][j - 1]  // замена
+        )
+      }
+    }
+  }
+  
+  return dp[m][n]
+}
+
 export default function TeachersPage({ teachers }: TeachersPageProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  
   // Преобразуем объект преподавателей в массив и сортируем по имени
-  const teachersList = Object.entries(teachers)
+  const allTeachers = Object.entries(teachers)
     .map(([id, teacher]) => ({ id, parseId: teacher.parseId, name: teacher.name }))
     .sort((a, b) => a.name.localeCompare(b.name))
+  
+  // Фильтруем преподавателей с учетом нечеткого поиска
+  const teachersList = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return allTeachers
+    }
+    
+    return allTeachers.filter(teacher => 
+      fuzzyMatch(searchQuery, teacher.name)
+    )
+  }, [allTeachers, searchQuery])
 
   return (
     <>
@@ -33,10 +126,33 @@ export default function TeachersPage({ teachers }: TeachersPageProps) {
             <p className="text-muted-foreground">Выберите преподавателя для просмотра расписания</p>
           </div>
 
+          {/* Поиск преподавателей */}
+          <div className="stagger-card" style={{ animationDelay: '0.1s' } as React.CSSProperties}>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-6 w-6 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Поиск преподавателя..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-14 text-lg"
+              />
+            </div>
+          </div>
+
           {teachersList.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                Преподаватели не найдены
+                {searchQuery ? (
+                  <div className="space-y-2">
+                    <p>Преподаватели не найдены по запросу "{searchQuery}"</p>
+                    <Button variant="link" onClick={() => setSearchQuery('')}>
+                      Сбросить поиск
+                    </Button>
+                  </div>
+                ) : (
+                  <p>Преподаватели не найдены</p>
+                )}
               </CardContent>
             </Card>
           ) : (

@@ -23,6 +23,13 @@ export default function App(props: AppProps) {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (max-width: 768px) {
+            input, select, textarea {
+              font-size: 16px !important;
+            }
+          }
+        ` }} />
       </Head>
       <ThemeProvider
         attribute="class"
