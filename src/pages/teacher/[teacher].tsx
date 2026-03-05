@@ -53,31 +53,7 @@ export default function TeacherPage(props: NextSerialized<PageProps>) {
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'auto'
     }
-
-    let attempts = 0
-    const MAX_ATTEMPTS = 50 // Максимум 5 секунд (50 * 100ms)
-
-    const interval = setInterval(() => {
-      attempts++
-      const today = getDayOfWeek(new Date())
-      const todayBlock = document.getElementById(today)
-      
-      if (todayBlock) {
-        const GAP = 48
-        const HEADER_HEIGHT = 64
-        window.scrollTo({ top: todayBlock.offsetTop - GAP - HEADER_HEIGHT, behavior: 'smooth' })
-        clearInterval(interval)
-      } else if (attempts >= MAX_ATTEMPTS) {
-        // Прекращаем попытки после максимального количества
-        clearInterval(interval)
-      }
-    }, 100)
-
-    // Cleanup функция для очистки интервала при размонтировании
-    return () => {
-      clearInterval(interval)
-    }
-  }, [schedule, error])
+  }, [error])
 
   return (
     <>
