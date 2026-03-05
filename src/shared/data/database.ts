@@ -9,30 +9,37 @@ import type { AppSettings } from './settings-loader'
 function getDatabaseDir(): string {
   // Если указан путь через переменную окружения, используем его
   if (process.env.DATABASE_DIR) {
+    console.log(`[Database] Using DATABASE_DIR from env: ${process.env.DATABASE_DIR}`)
     return process.env.DATABASE_DIR
   }
-  
+
   // В production режиме (standalone) используем стандартный путь
   const cwd = process.cwd()
-  
+  console.log(`[Database] process.cwd(): ${cwd}`)
+
   // Если мы в .next/standalone, поднимаемся на 2 уровня вверх к корню проекта
   if (cwd.includes('.next/standalone')) {
     // В standalone режиме process.cwd() = /opt/kspguti-schedule/.next/standalone
     // Нужно подняться до /opt/kspguti-schedule
     const standaloneMatch = cwd.match(/^(.+?)\/\.next\/standalone/)
     if (standaloneMatch && standaloneMatch[1]) {
+      console.log(`[Database] Detected standalone mode, using: ${standaloneMatch[1]}`)
       return standaloneMatch[1]
     }
     // Альтернативный способ: подняться на 2 уровня вверх
-    return path.resolve(cwd, '..', '..')
+    const parentDir = path.resolve(cwd, '..', '..')
+    console.log(`[Database] Fallback to parent directory: ${parentDir}`)
+    return parentDir
   }
-  
+
   // Проверяем стандартный путь для production
   if (fs.existsSync('/opt/kspguti-schedule')) {
+    console.log('[Database] Using /opt/kspguti-schedule')
     return '/opt/kspguti-schedule'
   }
-  
+
   // В development используем текущую директорию
+  console.log(`[Database] Using cwd: ${cwd}`)
   return cwd
 }
 
@@ -44,10 +51,31 @@ const DEFAULT_PASSWORD = 'ksadmin'
 // Путь к старой базе данных (для миграции)
 const OLD_DB_PATH = path.join(DATABASE_DIR, 'data', 'schedule-app.db')
 
+console.log(`[Database] DB_PATH: ${DB_PATH}`)
+
 // Создаем директорию db, если её нет
 const dbDir = path.dirname(DB_PATH)
+console.log(`[Database] dbDir: ${dbDir}`)
+
 if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true })
+  console.log(`[Database] Creating directory: ${dbDir}`)
+  try {
+    fs.mkdirSync(dbDir, { recursive: true })
+    console.log(`[Database] Directory created successfully`)
+  } catch (error) {
+    console.error(`[Database] Failed to create directory ${dbDir}:`, error)
+    throw new Error(`Failed to create database directory: ${dbDir}`)
+  }
+}
+
+// Проверяем, можем ли записывать в директорию
+try {
+  const testFile = path.join(dbDir, '.write-test')
+  fs.writeFileSync(testFile, 'test')
+  fs.unlinkSync(testFile)
+  console.log('[Database] Directory is writable')
+} catch (error) {
+  console.error(`[Database] Directory ${dbDir} is not writable:`, error)
 }
 
 // Миграция базы данных из data/ в db/ (если старая база существует)
@@ -92,25 +120,49 @@ function getDatabase(): Database.Database {
     return db
   }
 
+  console.log('[Database] Initializing database connection...')
+  console.log(`[Database] DB_PATH: ${DB_PATH}`)
+  console.log(`[Database] DB_PATH exists: ${fs.existsSync(DB_PATH)}`)
+
   // Выполняем миграцию расположения базы данных перед открытием
   migrateDatabaseLocation()
 
-  db = new Database(DB_PATH)
+  try {
+    console.log('[Database] Opening database...')
+    db = new Database(DB_PATH)
+    console.log('[Database] Database opened successfully')
 
-  // Применяем современные настройки SQLite
-  db.pragma('journal_mode = WAL') // Write-Ahead Logging для лучшей производительности
-  db.pragma('synchronous = NORMAL') // Баланс между производительностью и надежностью
-  db.pragma('foreign_keys = ON') // Включение проверки внешних ключей
-  db.pragma('busy_timeout = 5000') // Таймаут для ожидания блокировок (5 секунд)
-  db.pragma('temp_store = MEMORY') // Хранение временных данных в памяти
-  db.pragma('mmap_size = 268435456') // Memory-mapped I/O (256MB)
-  db.pragma('cache_size = -64000') // Размер кеша в страницах (64MB)
+    // Проверяем, можем ли записывать
+    try {
+      db.exec('SELECT 1')
+      console.log('[Database] Database is writable')
+    } catch (error) {
+      console.error('[Database] Database is not writable:', error)
+      throw new Error('Database is not writable: ' + (error as Error).message)
+    }
 
-  // Создаем таблицы, если их нет
-  initializeTables()
+    // Применяем современные настройки SQLite
+    db.pragma('journal_mode = WAL') // Write-Ahead Logging для лучшей производительности
+    db.pragma('synchronous = NORMAL') // Баланс между производительностью и надежностью
+    db.pragma('foreign_keys = ON') // Включение проверки внешних ключей
+    db.pragma('busy_timeout = 5000') // Таймаут для ожидания блокировок (5 секунд)
+    db.pragma('temp_store = MEMORY') // Хранение временных данных в памяти
+    db.pragma('mmap_size = 268435456') // Memory-mapped I/O (256MB)
+    db.pragma('cache_size = -64000') // Размер кеша в страницах (64MB)
 
-  // Выполняем миграцию данных из JSON, если БД пустая
-  migrateFromJSON()
+    console.log('[Database] SQLite pragmas applied')
+
+    // Создаем таблицы, если их нет
+    initializeTables()
+
+    // Выполняем миграцию данных из JSON, если БД пустая
+    migrateFromJSON()
+
+    console.log('[Database] Database initialization complete')
+  } catch (error) {
+    console.error('[Database] Failed to initialize database:', error)
+    throw error
+  }
 
   return db
 }
