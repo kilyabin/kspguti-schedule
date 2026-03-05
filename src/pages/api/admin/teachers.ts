@@ -17,7 +17,6 @@ async function handler(
 ) {
   if (req.method === 'GET') {
     // Получение списка преподавателей (всегда свежие данные для админ-панели)
-    clearTeachersCache()
     const teachers = loadTeachers(true)
     res.status(200).json({ teachers })
     return
@@ -69,17 +68,16 @@ async function handler(
 
       // Сохраняем в БД
       saveTeachers(teachersData)
-      
+
       // Сохраняем timestamp последнего обновления
       const { setTeachersLastUpdateTime } = await import('@/shared/data/database')
       setTeachersLastUpdateTime(Date.now())
-      
-      // Сбрасываем кеш и загружаем свежие данные из БД
-      clearTeachersCache()
+
+      // Загружаем свежие данные из БД (кеш уже сброшен в saveTeachers)
       const updatedTeachers = loadTeachers(true)
-      
-      res.status(200).json({ 
-        success: true, 
+
+      res.status(200).json({
+        success: true,
         teachers: updatedTeachers,
         parsed: teachersList.length
       })

@@ -1,4 +1,5 @@
-import { getAllTeachers as getAllTeachersFromDB, createTeacher, updateTeacher, deleteTeacher, getTeacher, type TeacherInfo, type TeachersData } from './database'
+import { getAllTeachers as getAllTeachersFromDB, createTeacher, updateTeacher, deleteTeacher, getTeacher, getDatabase, type TeacherInfo, type TeachersData } from './database'
+import type { Database } from 'better-sqlite3'
 
 let cachedTeachers: TeachersData | null = null
 let cacheTimestamp: number = 0
@@ -11,7 +12,7 @@ const CACHE_TTL_MS = 1000 * 60 // 1 минута
 export function loadTeachers(forceRefresh: boolean = false): TeachersData {
   const now = Date.now()
   const isCacheValid = cachedTeachers !== null && !forceRefresh && (now - cacheTimestamp) < CACHE_TTL_MS
-  
+
   if (isCacheValid && cachedTeachers !== null) {
     return cachedTeachers
   }
@@ -33,28 +34,39 @@ export function loadTeachers(forceRefresh: boolean = false): TeachersData {
 export function saveTeachers(teachers: TeachersData): void {
   try {
     const existingTeachers = getAllTeachersFromDB()
-    
+
     // Определяем, каких преподавателей нужно добавить, обновить или удалить
     const existingIds = new Set(Object.keys(existingTeachers))
     const newIds = new Set(Object.keys(teachers))
 
-    // Добавляем или обновляем преподавателей
-    for (const [id, teacher] of Object.entries(teachers)) {
-      if (existingIds.has(id)) {
-        updateTeacher(id, teacher)
-      } else {
-        createTeacher(id, teacher)
-      }
-    }
+    // Получаем ссылки на подготовленные выражения для транзакции
+    const database = getDatabase() as Database
+    const insertStmt = database.prepare('INSERT INTO teachers (id, parseId, name) VALUES (?, ?, ?)')
+    const updateStmt = database.prepare('UPDATE teachers SET parseId = ?, name = ? WHERE id = ?')
+    const deleteStmt = database.prepare('DELETE FROM teachers WHERE id = ?')
 
-    // Удаляем преподавателей, которых больше нет
-    for (const id of existingIds) {
-      if (!newIds.has(id)) {
-        deleteTeacher(id)
+    // Выполняем все операции в транзакции для атомарности
+    const saveTransaction = database.transaction((teachersData: TeachersData) => {
+      // Добавляем или обновляем преподавателей
+      for (const [id, teacher] of Object.entries(teachersData)) {
+        if (existingIds.has(id)) {
+          updateStmt.run(teacher.parseId, teacher.name, id)
+        } else {
+          insertStmt.run(id, teacher.parseId, teacher.name)
+        }
       }
-    }
 
-    // Сбрасываем кеш и timestamp
+      // Удаляем преподавателей, которых больше нет
+      for (const id of existingIds) {
+        if (!newIds.has(id)) {
+          deleteStmt.run(id)
+        }
+      }
+    })
+
+    saveTransaction(teachers)
+
+    // Сбрасываем кеш и timestamp после успешной транзакции
     cachedTeachers = null
     cacheTimestamp = 0
   } catch (error) {
