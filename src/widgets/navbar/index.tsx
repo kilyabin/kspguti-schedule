@@ -30,31 +30,19 @@ export function NavBar({ cacheAvailableFor, groups, isTeacherPage = false }: {
 
   return (
     <NavContextProvider cacheAvailableFor={cacheAvailableFor}>
-      <header className="sticky top-0 w-full p-2 bg-background z-[1] pb-0 mb-2 shadow-header">
-        <nav className={cx('rounded-lg p-2 w-full flex gap-2 md:justify-between', { 'bg-slate-200': theme === 'light', 'bg-slate-900': theme === 'dark' })} suppressHydrationWarning>
-          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
-            <ul className="flex gap-2 flex-nowrap">
-              <li className="flex-shrink-0">
-                <Link href={isTeacherPage ? "/teachers" : "/"}>
-                  <Button 
-                    variant="secondary" 
-                    className="min-h-[44px] whitespace-nowrap gap-2"
-                    tabIndex={-1}
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    <span>{isTeacherPage ? "К преподавателям" : "К группам"}</span>
-                  </Button>
-                </Link>
-              </li>
-              {Object.entries(groups).map(([id, group]) => (
-                <li key={id} className="hidden md:list-item flex-shrink-0">
-                  <NavBarItem url={`/${id}`}>{group.name}</NavBarItem>
-                </li>
-              ))}
-              <li className="flex-shrink-0 hidden md:list-item">
-                <AddGroupButton />
-              </li>
-            </ul>
+      <header className="sticky top-0 w-full p-3 bg-background/80 backdrop-blur-md z-[10] border-b border-border/50">
+        <nav className="w-full flex gap-3 justify-between items-center" suppressHydrationWarning>
+          <div className="flex gap-2 items-center">
+            <Link href={isTeacherPage ? "/teachers" : "/"}>
+              <Button 
+                variant="secondary" 
+                className="min-h-[44px] whitespace-nowrap gap-2"
+                tabIndex={-1}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>{isTeacherPage ? "К преподавателям" : "К группам"}</span>
+              </Button>
+            </Link>
           </div>
           <div className='flex gap-1 min-[500px]:gap-2 flex-shrink-0 items-center flex-nowrap'>
             <Link href={GITHUB_REPO_URL} target='_blank' rel='nofollower noreferrer' className="flex-shrink-0">
