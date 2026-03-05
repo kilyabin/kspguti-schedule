@@ -163,6 +163,14 @@ else
     fi
 fi
 
+# Добавляем DATABASE_PATH в .env если не указан
+if [ -f "$INSTALL_DIR/.env" ]; then
+    if ! grep -q "^DATABASE_PATH=" "$INSTALL_DIR/.env" 2>/dev/null; then
+        echo -e "${YELLOW}Adding DATABASE_PATH to .env...${NC}"
+        echo "DATABASE_PATH=$INSTALL_DIR/db/schedule-app.db" >> "$INSTALL_DIR/.env"
+    fi
+fi
+
 # Создаем папку db для базы данных, если её нет
 if [ ! -d "$INSTALL_DIR/db" ]; then
     echo -e "${YELLOW}Creating db directory for database...${NC}"
