@@ -236,26 +236,15 @@ fi
 echo -e "${YELLOW}Building the application...${NC}"
 npm run build
 
-# Ensure public directory and static files are accessible in standalone build
-echo -e "${YELLOW}Setting up static files...${NC}"
-if [ -d "$INSTALL_DIR/.next/standalone" ]; then
-    # Copy public directory to standalone (always update)
-    if [ -d "$INSTALL_DIR/public" ]; then
-        echo -e "${YELLOW}Copying public directory to standalone...${NC}"
-        rm -rf "$INSTALL_DIR/.next/standalone/public" 2>/dev/null || true
-        cp -r "$INSTALL_DIR/public" "$INSTALL_DIR/.next/standalone/public" 2>/dev/null || true
-    fi
-    # Copy .next/static to standalone/.next/static (always update)
-    if [ -d "$INSTALL_DIR/.next/static" ]; then
-        echo -e "${YELLOW}Copying .next/static to standalone...${NC}"
-        rm -rf "$INSTALL_DIR/.next/standalone/.next/static" 2>/dev/null || true
-        mkdir -p "$INSTALL_DIR/.next/standalone/.next"
-        cp -r "$INSTALL_DIR/.next/static" "$INSTALL_DIR/.next/standalone/.next/static" 2>/dev/null || true
-    else
-        echo -e "${RED}Warning: .next/static directory not found!${NC}"
-    fi
+# Post-build script already copies public and .next/static to standalone directory
+# Just verify the files are in place
+echo -e "${YELLOW}Verifying standalone build...${NC}"
+if [ -d "$INSTALL_DIR/.next/standalone/public" ] && [ -d "$INSTALL_DIR/.next/standalone/.next/static" ]; then
+    echo -e "${GREEN}✓ Static files are in place${NC}"
 else
-    echo -e "${RED}Warning: .next/standalone directory not found!${NC}"
+    echo -e "${RED}Warning: Static files may be missing from standalone directory${NC}"
+    echo -e "${YELLOW}Running post-build script manually...${NC}"
+    node scripts/postbuild.js || true
 fi
 
 # Check if service user exists, create if not
