@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=sched-user
+Group=sched-user
 WorkingDirectory=/opt/kspguti-schedule/.next/standalone
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1

@@ -5,44 +5,48 @@ import bcrypt from 'bcrypt'
 import type { GroupInfo, GroupsData } from './groups-loader'
 import type { AppSettings } from './settings-loader'
 
-// Определяем корень проекта для хранения базы данных
-function getDatabaseDir(): string {
-  // Если указан путь через переменную окружения, используем его
-  if (process.env.DATABASE_DIR) {
-    return process.env.DATABASE_DIR
+// Определяем путь к базе данных
+function getDatabasePath(): string {
+  // Приоритет 1: Явный полный путь через DATABASE_PATH
+  if (process.env.DATABASE_PATH) {
+    return process.env.DATABASE_PATH
   }
-  
-  // В production режиме (standalone) используем стандартный путь
+
+  // Приоритет 2: Путь через DATABASE_DIR (для обратной совместимости)
+  if (process.env.DATABASE_DIR) {
+    return path.join(process.env.DATABASE_DIR, 'db', 'schedule-app.db')
+  }
+
+  // Приоритет 3: Автоматическое определение
   const cwd = process.cwd()
-  
+
   // Если мы в .next/standalone, поднимаемся на 2 уровня вверх к корню проекта
   if (cwd.includes('.next/standalone')) {
     // В standalone режиме process.cwd() = /opt/kspguti-schedule/.next/standalone
     // Нужно подняться до /opt/kspguti-schedule
     const standaloneMatch = cwd.match(/^(.+?)\/\.next\/standalone/)
     if (standaloneMatch && standaloneMatch[1]) {
-      return standaloneMatch[1]
+      return path.join(standaloneMatch[1], 'db', 'schedule-app.db')
     }
     // Альтернативный способ: подняться на 2 уровня вверх
-    return path.resolve(cwd, '..', '..')
+    return path.resolve(cwd, '..', '..', 'db', 'schedule-app.db')
   }
-  
+
   // Проверяем стандартный путь для production
   if (fs.existsSync('/opt/kspguti-schedule')) {
-    return '/opt/kspguti-schedule'
+    return path.join('/opt/kspguti-schedule', 'db', 'schedule-app.db')
   }
-  
+
   // В development используем текущую директорию
-  return cwd
+  return path.join(cwd, 'db', 'schedule-app.db')
 }
 
-// Путь к директории базы данных
-const DATABASE_DIR = getDatabaseDir()
-const DB_PATH = path.join(DATABASE_DIR, 'db', 'schedule-app.db')
+// Путь к базе данных
+const DB_PATH = getDatabasePath()
 const DEFAULT_PASSWORD = 'ksadmin'
 
-// Путь к старой базе данных (для миграции)
-const OLD_DB_PATH = path.join(DATABASE_DIR, 'data', 'schedule-app.db')
+// Путь к старой базе данных (для миграции из data/ в db/)
+const OLD_DB_PATH = path.join(path.dirname(DB_PATH), '..', 'data', 'schedule-app.db')
 
 // Создаем директорию db, если её нет
 const dbDir = path.dirname(DB_PATH)
