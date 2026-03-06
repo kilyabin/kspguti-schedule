@@ -2,11 +2,19 @@
 
 Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support.
 
+Screenshots:
+
+![1](misc/screen1.png)
+
+![2](misc/screen2.png)
+
+![3](misc/screen3.png)
+<details>
+<summary>Old screenshots (2023)</summary>
 [![Screenshot](https://github.com/VityaSchel/kspguti-schedule/assets/59040542/07cc1f67-ccb0-4522-a59d-16387fa11987#gh-dark-mode-only)](https://schedule.itlxrd.space/)
 
 [![Screenshot](https://github.com/VityaSchel/kspguti-schedule/assets/59040542/7bd26798-5ec1-4033-a9ca-84ffa0c44f52#gh-light-mode-only)](https://schedule.itlxrd.space/)
-
-[Visit website](https://kspsuti.ru)
+</details>
 
 ## Tech stack & features
 
