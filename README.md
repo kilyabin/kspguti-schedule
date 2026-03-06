@@ -6,8 +6,6 @@ Screenshots:
 
 ![1](misc/screen1.png)
 
-![2](misc/screen2.png)
-
 ![3](misc/screen3.png)
 <details>
 <summary>Old screenshots (2023)</summary>
