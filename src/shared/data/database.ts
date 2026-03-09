@@ -419,6 +419,8 @@ export function getSettings(): AppSettings {
 
 export function updateSettings(settings: AppSettings): void {
   const database = getDatabase()
+  console.log('[Database] updateSettings called, DB path:', DB_PATH)
+  
   const defaultSettings: AppSettings = {
     weekNavigationEnabled: false,
     showAddGroupButton: true,
@@ -441,9 +443,16 @@ export function updateSettings(settings: AppSettings): void {
     ...settingsWithoutDebug
   }
 
-  database
-    .prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
-    .run('app', JSON.stringify(mergedSettings))
+  console.log('[Database] Saving merged settings:', mergedSettings)
+  
+  try {
+    const stmt = database.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
+    const result = stmt.run('app', JSON.stringify(mergedSettings))
+    console.log('[Database] Settings save result:', result)
+  } catch (error) {
+    console.error('[Database] Error executing SQL:', error)
+    throw error
+  }
 }
 
 // ==================== Функции для работы с паролем ====================

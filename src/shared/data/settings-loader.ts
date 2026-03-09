@@ -62,12 +62,14 @@ export function loadSettings(forceRefresh: boolean = false): AppSettings {
  */
 export function saveSettings(settings: AppSettings): void {
   try {
+    console.log('[Settings] Saving settings to database:', settings)
     updateSettingsInDB(settings)
+    console.log('[Settings] Settings saved successfully')
     // Сбрасываем кеш и timestamp
     cachedSettings = null
     cacheTimestamp = 0
   } catch (error) {
-    console.error('Error saving settings to database:', error)
+    console.error('[Settings] Error saving settings to database:', error)
     throw new Error('Failed to save settings')
   }
 }
