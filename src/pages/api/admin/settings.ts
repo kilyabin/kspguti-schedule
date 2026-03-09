@@ -22,9 +22,18 @@ async function handler(
     // Сначала загружаем текущие настройки из базы данных
     clearSettingsCache()
     const currentSettings = loadSettings(true)
-    
+
     // Обновление настроек
     const { weekNavigationEnabled, showAddGroupButton, showTeachersButton, vacationModeEnabled, vacationModeContent, debug } = req.body
+
+    console.log('[Settings API] Received settings update:', {
+      weekNavigationEnabled,
+      showAddGroupButton,
+      showTeachersButton,
+      vacationModeEnabled,
+      vacationModeContent,
+      hasDebug: debug !== undefined
+    })
 
     if (typeof weekNavigationEnabled !== 'boolean') {
       res.status(400).json({ error: 'weekNavigationEnabled must be a boolean' })
