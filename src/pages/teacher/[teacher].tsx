@@ -112,16 +112,16 @@ export default function TeacherPage(props: NextSerialized<PageProps>) {
 }
 
 const cachedTeacherSchedules = new Map<string, { lastFetched: Date, results: ScheduleResult }>()
-const maxCacheDurationInMS = 1000 * 60 * 15 // 15 минут для нормального использования кэша
-const fallbackCacheDurationInMS = 1000 * 60 * 60 * 24 // 24 часа для fallback кэша при ошибках парсинга
-const maxCacheSize = 50 // Максимальное количество записей в кэше (только текущие недели)
+const maxCacheDurationInMS = 1000 * 60 * 15 // 15 минут
+const fallbackCacheDurationInMS = 1000 * 60 * 60 * 24 // 24 часа
+const maxCacheSize = 50 // Максимальное количество записей в кэше
 
 // Очистка старых записей из кэша
 function cleanupCache() {
   const now = Date.now()
   const entriesToDelete: string[] = []
-  
-  // Находим устаревшие записи (используем fallback TTL для сохранения кэша при ошибках)
+
+  // Находим устаревшие записи
   for (const [key, value] of cachedTeacherSchedules.entries()) {
     if (now - value.lastFetched.getTime() >= fallbackCacheDurationInMS) {
       entriesToDelete.push(key)
@@ -169,9 +169,8 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
     }
   }
 
-  // Проверяем debug опции
   const debug = settings.debug || {}
-  
+
   // Debug: принудительно показать ошибку
   if (debug.forceError) {
     const cacheAvailableFor = Array.from(cachedTeacherSchedules.entries())
@@ -195,7 +194,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
     }
   }
   
-  // Debug: принудительно симулировать таймаут
+  // Debug: симулировать таймаут
   if (debug.forceTimeout) {
     const cacheAvailableFor = Array.from(cachedTeacherSchedules.entries())
       .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
@@ -232,7 +231,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
   const cacheKey = `teacher_${teacherParseId}` // Ключ кэша для преподавателя
   const cachedSchedule = useCache ? cachedTeacherSchedules.get(cacheKey) : undefined
   
-  // Debug: принудительно использовать кэш
+  // Debug: использовать кэш
   if (debug.forceCache && cachedSchedule) {
     scheduleResult = cachedSchedule.results
     parsedAt = cachedSchedule.lastFetched
@@ -255,8 +254,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
         cleanupCache()
       }
     } catch(e) {
-      // При таймауте или любой другой ошибке используем кэш, если он доступен (fallback кэш)
-      // Используем кэш независимо от возраста при ошибке парсинга
+      // При ошибке используем кэш, если он доступен
       if (cachedSchedule) {
         scheduleResult = cachedSchedule.results
         parsedAt = cachedSchedule.lastFetched
@@ -270,7 +268,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
           console.warn(`Schedule fetch error for teacher ${teacherInfo.name}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAge} minutes old)`)
         }
         } else {
-          // Если кэша нет, возвращаем страницу с ошибкой вместо throw
+          // Если кэша нет, возвращаем страницу с ошибкой
           const isTimeout = e instanceof ScheduleTimeoutError
           const errorMessageObj = e instanceof Error ? e : new Error(String(e))
           const isSSLError = errorMessageObj.message?.includes('колледже что-то сломалось') || 
@@ -313,7 +311,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
     }
   }
   
-  // Debug: принудительно показать пустое расписание
+  // Debug: показать пустое расписание
   if (debug.forceEmpty) {
     scheduleResult = {
       days: [],
@@ -343,9 +341,9 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ te
 
   const cacheAvailableFor = Array.from(cachedTeacherSchedules.entries())
     .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
-    .map(([k]) => k.split('_')[1]) // Берем parseId из ключа кэша
+    .map(([k]) => k.split('_')[1])
 
-  // Debug: информация о кэше
+  // Информация о кэше (debug)
   const cacheInfo = debug.showCacheInfo ? {
     size: cachedTeacherSchedules.size,
     entries: cachedTeacherSchedules.size

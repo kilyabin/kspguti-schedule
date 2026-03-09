@@ -202,7 +202,7 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
   const loadSettingsList = () => loadData('/api/admin/settings', setSettings)
 
   const handleUpdateSettings = async (newSettings: AppSettings) => {
-    // Сохраняем предыдущее состояние для отката при ошибке
+    // Сохраняем предыдущее состояние для отката
     const previousSettings = settings
     // Оптимистичное обновление UI
     setSettings(newSettings)
@@ -218,18 +218,18 @@ export default function AdminPage({ groups: initialGroups, settings: initialSett
       const data = await res.json()
 
       if (res.ok && data.success) {
-        // Обновляем состояние из ответа сервера (для синхронизации)
+        // Обновляем состояние из ответа сервера
         setSettings(data.settings)
         showToast('Настройки успешно обновлены', 'success')
       } else {
-        // Откатываем изменения при ошибке
+        // Откат изменений при ошибке
         setSettings(previousSettings)
         const errorMessage = data.error || 'Ошибка при обновлении настроек'
         setError(errorMessage)
         showToast(errorMessage, 'error')
       }
     } catch (err) {
-      // Откатываем изменения при ошибке
+      // Откат изменений при ошибке
       setSettings(previousSettings)
       const errorMessage = 'Ошибка соединения с сервером'
       setError(errorMessage)

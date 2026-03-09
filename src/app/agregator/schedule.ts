@@ -57,7 +57,7 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
         dom = null
         return scheduleResult
       } catch(e) {
-        // Очищаем JSDOM даже в случае ошибки
+        // Очищаем JSDOM при ошибке
         if (dom) {
           dom.window.close()
         }
@@ -118,7 +118,7 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
           networkErrorMessage: networkError.message
         })
       } else if (networkError.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || networkError.message?.includes('self-signed certificate') || networkError.message?.includes('certificate')) {
-        // Ошибка SSL сертификата
+        // Обработка ошибки SSL сертификата
         console.error(`SSL certificate error while fetching ${PROXY_URL}:`, {
           code: networkError.code,
           message: networkError.message,
@@ -144,7 +144,7 @@ export async function getSchedule(groupID: number, groupName: string, wk?: numbe
         })
       }
     } else {
-      // Проверяем сообщение об ошибке на наличие упоминания сертификата
+      // Проверка на ошибку SSL сертификата по сообщению
       if (errorObj.message?.includes('self-signed certificate') || errorObj.message?.includes('certificate')) {
         const sslError = new Error(`В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.`)
         logErrorToFile(sslError, {
@@ -207,7 +207,7 @@ export async function getTeacherSchedule(teacherID: number, teacherName: string,
         dom = null
         return scheduleResult
       } catch(e) {
-        // Очищаем JSDOM даже в случае ошибки
+        // Очищаем JSDOM при ошибке
         if (dom) {
           dom.window.close()
         }
@@ -268,7 +268,7 @@ export async function getTeacherSchedule(teacherID: number, teacherName: string,
           networkErrorMessage: networkError.message
         })
       } else if (networkError.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || networkError.message?.includes('self-signed certificate') || networkError.message?.includes('certificate')) {
-        // Ошибка SSL сертификата
+        // Обработка ошибки SSL сертификата
         console.error(`SSL certificate error while fetching ${PROXY_URL}:`, {
           code: networkError.code,
           message: networkError.message,
@@ -294,7 +294,7 @@ export async function getTeacherSchedule(teacherID: number, teacherName: string,
         })
       }
     } else {
-      // Проверяем сообщение об ошибке на наличие упоминания сертификата
+      // Проверка на ошибку SSL сертификата по сообщению
       if (errorObj.message?.includes('self-signed certificate') || errorObj.message?.includes('certificate')) {
         const sslError = new Error(`В колледже что-то сломалось (проблема с сертификатом безопасности). Здесь я бессилен, проблема не на моей стороне.`)
         logErrorToFile(sslError, {
