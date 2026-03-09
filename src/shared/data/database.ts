@@ -381,8 +381,7 @@ export function getSettings(): AppSettings {
 
   try {
     const settings = JSON.parse(row.value) as Partial<AppSettings>
-    // Всегда добавляем дефолтные debug настройки (они не хранятся в БД)
-    // И добавляем отсутствующие поля для обратной совместимости
+    // Добавляем debug настройки и значения по умолчанию для обратной совместимости
     return {
       weekNavigationEnabled: settings.weekNavigationEnabled ?? false,
       showAddGroupButton: settings.showAddGroupButton ?? true,
@@ -435,12 +434,11 @@ export function updateSettings(settings: AppSettings): void {
     }
   }
 
-  // Исключаем debug из настроек перед сохранением в БД
+  // Сохраняем настройки без debug (debug не хранится в БД)
   const { debug, ...settingsWithoutDebug } = settings
   const mergedSettings: AppSettings = {
     ...defaultSettings,
     ...settingsWithoutDebug
-    // debug намеренно не сохраняется в БД
   }
 
   database

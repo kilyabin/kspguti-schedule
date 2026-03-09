@@ -671,9 +671,9 @@ const parseLesson = (row: Element, isTeacherSchedule: boolean = false): Lesson |
         }
       }
       
-      // Для преподавателей может быть другая структура - проверяем наличие данных
+      // Для преподавателей может быть другая структура — проверяем наличие данных
       if (!cellText && !cellHTML) {
-        // Вместо ошибки, используем fallback
+        // Используем fallback для получения текста
         const allText = row.textContent?.trim() || ''
         if (allText && allText.length > 10) {
           cellText = allText
@@ -1146,7 +1146,6 @@ export function parsePage(
     throw new Error(`Table not found for ${groupName}. Found ${tables.length} tables on the page.`)
   }
 
-  // К этому моменту table определен (иначе была бы ошибка выше)
   const selectedTable = table!
 
   logDebug('parsePage: selected table', { groupName, rows: selectedTable.querySelectorAll('tr').length })

@@ -123,16 +123,16 @@ export default function HomePage(props: NextSerialized<PageProps>) {
 }
 
 const cachedSchedules = new Map<string, { lastFetched: Date, results: ScheduleResult }>()
-const maxCacheDurationInMS = 1000 * 60 * 15 // 15 минут для нормального использования кэша
-const fallbackCacheDurationInMS = 1000 * 60 * 60 * 24 // 24 часа для fallback кэша при ошибках парсинга
-const maxCacheSize = 50 // Максимальное количество записей в кэше (только текущие недели)
+const maxCacheDurationInMS = 1000 * 60 * 15 // 15 минут
+const fallbackCacheDurationInMS = 1000 * 60 * 60 * 24 // 24 часа
+const maxCacheSize = 50 // Максимальное количество записей в кэше
 
 // Очистка старых записей из кэша
 function cleanupCache() {
   const now = Date.now()
   const entriesToDelete: string[] = []
-  
-  // Находим устаревшие записи (используем fallback TTL для сохранения кэша при ошибках)
+
+  // Находим устаревшие записи
   for (const [key, value] of cachedSchedules.entries()) {
     if (now - value.lastFetched.getTime() >= fallbackCacheDurationInMS) {
       entriesToDelete.push(key)
@@ -164,9 +164,8 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
     : undefined
   
   if (group && Object.hasOwn(groups, group) && group in groups) {
-    // Проверяем debug опции
     const debug = settings.debug || {}
-    
+
     // Debug: принудительно показать ошибку
     if (debug.forceError) {
       const cacheAvailableFor = Array.from(cachedSchedules.entries())
@@ -190,7 +189,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
       }
     }
     
-    // Debug: принудительно симулировать таймаут
+    // Debug: симулировать таймаут
     if (debug.forceTimeout) {
       const cacheAvailableFor = Array.from(cachedSchedules.entries())
         .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
@@ -227,7 +226,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
     const cacheKey = group // Ключ кэша - только группа (текущая неделя)
     const cachedSchedule = useCache ? cachedSchedules.get(cacheKey) : undefined
     
-    // Debug: принудительно использовать кэш
+    // Debug: использовать кэш
     if (debug.forceCache && cachedSchedule) {
       scheduleResult = cachedSchedule.results
       parsedAt = cachedSchedule.lastFetched
@@ -251,8 +250,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
           cleanupCache()
         }
       } catch(e) {
-        // При таймауте или любой другой ошибке используем кэш, если он доступен (fallback кэш)
-        // Используем кэш независимо от возраста при ошибке парсинга
+        // При ошибке используем кэш, если он доступен
         if (cachedSchedule) {
           scheduleResult = cachedSchedule.results
           parsedAt = cachedSchedule.lastFetched
@@ -266,7 +264,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
             console.warn(`Schedule fetch error for group ${group}, using fallback cache from ${cachedSchedule.lastFetched.toISOString()} (${cacheAge} minutes old)`)
           }
         } else {
-          // Если кэша нет, возвращаем страницу с ошибкой вместо throw
+          // Если кэша нет, возвращаем страницу с ошибкой
           const isTimeout = e instanceof ScheduleTimeoutError
           const errorMessageObj = e instanceof Error ? e : new Error(String(e))
           const isSSLError = errorMessageObj.message?.includes('колледже что-то сломалось') || 
@@ -278,7 +276,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
                               errorMessageObj.cause.message?.includes('self-signed certificate')
                             ))
           
-          // Если ошибка уже содержит нужное сообщение, используем его напрямую
+          // Формируем сообщение об ошибке
           let errorMessage: string
           if (isTimeout) {
             errorMessage = 'Превышено время ожидания ответа от сервера'
@@ -314,7 +312,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
       }
     }
     
-    // Debug: принудительно показать пустое расписание
+    // Debug: показать пустое расписание
     if (debug.forceEmpty) {
       scheduleResult = {
         days: [],
@@ -344,9 +342,9 @@ export async function getServerSideProps(context: GetServerSidePropsContext<{ gr
 
     const cacheAvailableFor = Array.from(cachedSchedules.entries())
       .filter(([, v]) => v.lastFetched.getTime() + maxCacheDurationInMS > Date.now())
-      .map(([k]) => k.split('_')[0]) // Берем только группу из ключа кэша
+      .map(([k]) => k.split('_')[0])
 
-    // Debug: информация о кэше
+    // Информация о кэше (debug)
     const cacheInfo = debug.showCacheInfo ? {
       size: cachedSchedules.size,
       entries: cachedSchedules.size
