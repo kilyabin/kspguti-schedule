@@ -2,6 +2,17 @@
 
 Reskin of https://lk.ks.psuti.ru/ since it lacks mobile support.
 
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-components-000000?logo=shadcnui)](https://ui.shadcn.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Telegram Bot](https://img.shields.io/badge/Telegram-Bot_API-26A5E4?logo=telegram&logoColor=white)](https://core.telegram.org/bots/api)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fschedule.itlxrd.space&label=schedule.itlxrd.space)](https://schedule.itlxrd.space/)
+[![License](https://img.shields.io/github/license/kilyabin/kspguti-schedule)](https://github.com/kilyabin/kspguti-schedule/blob/master/LICENSE)
+
 Screenshots:
 
 ![1](misc/screen1.png)
