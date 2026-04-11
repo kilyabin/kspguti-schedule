@@ -92,29 +92,20 @@ fi
 
 echo -e "${GREEN}Node.js version: $NODE_VERSION_OUTPUT${NC}"
 
-# Check npm
-if ! command -v npm &> /dev/null; then
-    echo -e "${RED}npm is not installed.${NC}"
+# Check pnpm
+if ! command -v pnpm &> /dev/null; then
+    echo -e "${RED}pnpm is not installed. Install it with: npm install -g pnpm${NC}"
     exit 1
 fi
 
-# Try to get npm version, handle errors gracefully
-NPM_VERSION_OUTPUT=$(npm -v 2>&1)
+# Try to get pnpm version, handle errors gracefully
+PNPM_VERSION_OUTPUT=$(pnpm --version 2>&1)
 if [ $? -ne 0 ]; then
-    echo -e "${RED}Error running npm: $NPM_VERSION_OUTPUT${NC}"
-    echo -e "${YELLOW}This might be due to missing system libraries (ICU).${NC}"
-    echo -e "${YELLOW}Attempting to install ICU library...${NC}"
-    detect_and_suggest_icu
-    echo -e "${YELLOW}Retrying npm check...${NC}"
-    sleep 2
-    NPM_VERSION_OUTPUT=$(npm -v 2>&1)
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Still cannot run npm. Please install ICU library manually and try again.${NC}"
-        exit 1
-    fi
+    echo -e "${RED}Error running pnpm: $PNPM_VERSION_OUTPUT${NC}"
+    exit 1
 fi
 
-echo -e "${GREEN}npm version: $NPM_VERSION_OUTPUT${NC}\n"
+echo -e "${GREEN}pnpm version: $PNPM_VERSION_OUTPUT${NC}\n"
 
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -190,16 +181,15 @@ NEED_INSTALL=true
 LOCK_FILE=""
 DEPENDENCY_HASH_FILE="$INSTALL_DIR/.dependencies.hash"
 
-if [ -f "package-lock.json" ]; then
-    LOCK_FILE="package-lock.json"
-elif [ -f "pnpm-lock.yaml" ]; then
+LOCK_FILE=""
+if [ -f "pnpm-lock.yaml" ]; then
     LOCK_FILE="pnpm-lock.yaml"
 fi
 
 if [ -d "node_modules" ] && [ -n "$LOCK_FILE" ] && [ -f "package.json" ] && [ -f "$LOCK_FILE" ]; then
     # Calculate hash of package files (content-based, not timestamp)
     CURRENT_HASH=$(cat package.json "$LOCK_FILE" 2>/dev/null | md5sum | cut -d' ' -f1)
-    
+
     # Check if hash file exists and matches
     if [ -f "$DEPENDENCY_HASH_FILE" ]; then
         SAVED_HASH=$(cat "$DEPENDENCY_HASH_FILE" 2>/dev/null)
@@ -229,8 +219,8 @@ fi
 
 if [ "$NEED_INSTALL" = true ]; then
     echo -e "${YELLOW}Installing dependencies...${NC}"
-    npm ci --legacy-peer-deps --production=false
-    
+    pnpm install --frozen-lockfile
+
     # Save hash after successful installation
     if [ -n "$LOCK_FILE" ] && [ -f "package.json" ] && [ -f "$LOCK_FILE" ]; then
         cat package.json "$LOCK_FILE" 2>/dev/null | md5sum | cut -d' ' -f1 > "$DEPENDENCY_HASH_FILE"
@@ -242,7 +232,7 @@ fi
 
 # Build the application
 echo -e "${YELLOW}Building the application...${NC}"
-npm run build
+pnpm run build
 
 # Post-build script already copies public and .next/static to standalone directory
 # Just verify the files are in place

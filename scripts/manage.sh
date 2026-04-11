@@ -134,16 +134,15 @@ case "$1" in
         LOCK_FILE=""
         DEPENDENCY_HASH_FILE="$INSTALL_DIR/.dependencies.hash"
         
-        if [ -f "package-lock.json" ]; then
-            LOCK_FILE="package-lock.json"
-        elif [ -f "pnpm-lock.yaml" ]; then
+        LOCK_FILE=""
+        if [ -f "pnpm-lock.yaml" ]; then
             LOCK_FILE="pnpm-lock.yaml"
         fi
-        
+
         if [ -d "node_modules" ] && [ -n "$LOCK_FILE" ] && [ -f "package.json" ] && [ -f "$LOCK_FILE" ]; then
             # Calculate hash of package files (content-based, not timestamp)
             CURRENT_HASH=$(cat package.json "$LOCK_FILE" 2>/dev/null | md5sum | cut -d' ' -f1)
-            
+
             # Check if hash file exists and matches
             if [ -f "$DEPENDENCY_HASH_FILE" ]; then
                 SAVED_HASH=$(cat "$DEPENDENCY_HASH_FILE" 2>/dev/null)
@@ -170,11 +169,11 @@ case "$1" in
                 NEED_INSTALL=true
             fi
         fi
-        
+
         if [ "$NEED_INSTALL" = true ]; then
             echo -e "${YELLOW}Installing dependencies...${NC}"
-            npm ci --legacy-peer-deps --production=false
-            
+            pnpm install --frozen-lockfile
+
             # Save hash after successful installation
             if [ -n "$LOCK_FILE" ] && [ -f "package.json" ] && [ -f "$LOCK_FILE" ]; then
                 cat package.json "$LOCK_FILE" 2>/dev/null | md5sum | cut -d' ' -f1 > "$DEPENDENCY_HASH_FILE"
@@ -183,10 +182,10 @@ case "$1" in
         else
             echo -e "${GREEN}Dependencies are up to date, skipping installation${NC}"
         fi
-        
+
         # Build
         echo -e "${YELLOW}Building application...${NC}"
-        if ! npm run build; then
+        if ! pnpm run build; then
             echo -e "${RED}Build failed! Please check the error messages above.${NC}"
             echo -e "${RED}The .next/standalone directory will not be created if the build fails.${NC}"
             exit 1
