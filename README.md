@@ -154,17 +154,17 @@ kspguti-schedule/
 
 ### Prerequisites
 
-- Node.js 20+ (see `.nvmrc`)
-- npm 10+ or pnpm
+- Node.js 22.5+
+- pnpm 11+
 
 ### Local development
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run development server
-npm run dev
+pnpm run dev
 ```
 
 ### Admin Panel
@@ -216,30 +216,44 @@ The application includes an admin panel for managing groups and application sett
 
 ### Docker deployment
 
-#### Build and run with Docker
+#### Using pre-built image from GHCR (recommended)
+
+A Docker image is automatically built and pushed to GitHub Container Registry on every push to `master` and on version tags.
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/kilyabin/kspguti-schedule:master
+
+# Create .env file with your configuration
+cp .env.production.example .env
+nano .env
+
+# Start with Docker Compose
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Update to the latest image
+docker compose pull && docker compose up -d
+
+# Stop
+docker compose down
+```
+
+The `docker-compose.yml` mounts `./db` as a volume so the SQLite database persists across container restarts and image updates.
+
+#### Build locally
 
 ```bash
 # Build the image
 docker build -t kspguti-schedule .
 
 # Run the container
-docker run -p 3000:3000 kspguti-schedule
+docker run -p 3000:3000 --env-file .env -v ./db:/app/db kspguti-schedule
 ```
 
-#### Using Docker Compose
-
-```bash
-# Build and start
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-**Environment variables:** Edit `docker-compose.yml` to add your environment variables:
+**Environment variables:** Create a `.env` file based on `.env.production.example`:
 - `PROXY_URL` - URL for schedule parsing (optional)
 - `PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_BOTAPI_TOKEN` - Telegram bot token (optional)
 - `PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_CHAT_ID` - Telegram chat ID (optional)
@@ -377,7 +391,7 @@ See `.env.production.example` for available options. The application uses `.env`
 
 #### Other platforms
 
-The project can be deployed to any platform supporting Node.js 20+:
+The project can be deployed to any platform supporting Node.js 22.5+:
 - Vercel
 - Railway
 - DigitalOcean App Platform
