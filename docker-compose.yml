@@ -1,17 +1,15 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/kilyabin/kspguti-schedule:master
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - NEXT_TELEMETRY_DISABLED=1
-      # Добавьте ваши переменные окружения здесь
-      # - PROXY_URL=${PROXY_URL}
-      # - PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_BOTAPI_TOKEN=${PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_BOTAPI_TOKEN}
-      # - PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_CHAT_ID=${PARSING_FAILURE_NOTIFICATIONS_TELEGRAM_CHAT_ID}
+    volumes:
+      - ./db:/app/db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
@@ -19,4 +17,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
