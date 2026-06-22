@@ -10,3 +10,4 @@ overrides:
   undici: ">=7.28.0 <8"
   js-yaml: ">=4.2.0 <5"
   "@babel/core": ">=7.29.6 <8"
+  postcss: ">=8.5.10"
