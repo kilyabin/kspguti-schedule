@@ -1,6 +1,4 @@
 User-agent: *
-Disallow: /
-Allow: /ps7
-Allow: /pks35k
+Disallow: /admin
 
 Sitemap: https://schedule.itlxrd.space/sitemap.xml
