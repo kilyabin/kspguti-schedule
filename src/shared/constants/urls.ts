@@ -12,7 +12,7 @@ export const KS_PSUTI_IMAGES_BASE_URL = 'https://ks.psuti.ru/images'
 
 // Social media and external links
 export const GITHUB_REPO_URL = 'https://github.com/kilyabin/kspguti-schedule'
-export const TELEGRAM_CONTACT_URL = 'https://t.me/REDACTED'
+export const TELEGRAM_CONTACT_URL = process.env.NEXT_PUBLIC_TELEGRAM_CONTACT_URL || ''
 
 // Teacher photos base URL
 export const TEACHER_PHOTOS_BASE_URL = `${KS_PSUTI_IMAGES_BASE_URL}/stories`
